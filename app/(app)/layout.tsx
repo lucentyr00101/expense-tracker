@@ -1,16 +1,13 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { BottomNav, SideNav } from "@/components/nav";
+import { BottomNav, LogoLink, SideNav } from "@/components/nav";
 import { UserMenu, UserMenuSkeleton } from "@/components/user-menu";
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="lg:grid lg:min-h-dvh lg:grid-cols-[16rem_1fr]">
       <aside className="glass sticky top-0 hidden h-dvh flex-col gap-8 border-y-0 border-l-0 p-4 lg:flex">
-        <Link href="/dashboard" className="rounded-lg px-1 focus-visible:outline-2 focus-visible:outline-ring">
-          <Logo />
-        </Link>
+        <LogoLink />
         <SideNav />
         <div className="mt-auto">
           <Suspense fallback={<UserMenuSkeleton />}>

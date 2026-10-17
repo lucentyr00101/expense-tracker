@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import type { Granularity, Preset, Range } from "@/lib/dates";
+import { setDashboardHref } from "./dashboard-href";
 
 const PRESETS: { value: Preset; label: string }[] = [
   { value: "today", label: "Day" },
@@ -40,12 +41,16 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
   const [from, setFrom] = useState(range.from);
   const [to, setTo] = useState(range.to);
 
-  function go(params: Params) {
+  function hrefFor(params: Params) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries({ group: groupParam, ...params })) {
       if (v !== undefined && v !== "") qs.set(k, String(v));
     }
-    start(() => router.push(`/dashboard?${qs}`, { scroll: false }));
+    return `/dashboard?${qs}`;
+  }
+
+  function go(params: Params) {
+    start(() => router.push(hrefFor(params), { scroll: false }));
   }
 
   const current: Params =
@@ -54,6 +59,9 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
       : range.preset === "custom"
         ? { preset: "custom", from: range.from, to: range.to }
         : { preset: range.preset, offset: range.offset || undefined };
+
+  const currentHref = hrefFor(current);
+  useEffect(() => setDashboardHref(currentHref), [currentHref]);
 
   function pickPreset(p: Preset) {
     setPreset(p);

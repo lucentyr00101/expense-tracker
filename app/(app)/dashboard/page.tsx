@@ -54,7 +54,13 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
         actions={<AddTransactionButton categories={categories} currency={currency} date={today} />}
       />
 
-      <RangePicker range={range} groupParam={params.group} today={today} />
+      {/* Keyed so its local selection resets to the range actually shown; the page stays mounted across navigations. */}
+      <RangePicker
+        key={`${range.preset}|${range.from}|${range.to}|${params.group ?? ""}`}
+        range={range}
+        groupParam={params.group}
+        today={today}
+      />
 
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Expenses" value={formatMoney(summary.expense, currency)} dot="var(--series-expense)" />
