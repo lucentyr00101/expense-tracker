@@ -1,54 +1,88 @@
 "use client";
 
 import { useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type TooltipContentProps,
+} from "recharts";
 import { ChartColumn, Table2 } from "lucide-react";
-import type { SeriesPoint } from "@/lib/data";
+import type { CategoryTotal, SeriesPoint } from "@/lib/data";
 import { bucketLabel, bucketTitle, type Granularity } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 
-const SERIES = [
-  { key: "expense", label: "Expenses", color: "var(--series-expense)" },
-  { key: "income", label: "Income", color: "var(--series-income)" },
-] as const;
-
-export function CashFlowChart({ data, group, currency }: { data: SeriesPoint[]; group: Granularity; currency: string }) {
+/**
+ * Two stacked bars per bucket, expenses then income, each split by category.
+ * Only categories with transactions in the range get a series, and a bucket
+ * with no income (or no expenses) draws nothing on that side.
+ */
+export function CashFlowChart({ data, expense, income, group, currency }: {
+  data: SeriesPoint[];
+  expense: CategoryTotal[];
+  income: CategoryTotal[];
+  group: Granularity;
+  currency: string;
+}) {
   const [view, setView] = useState<"chart" | "table">("chart");
   const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const rows = data.map((d) => ({ ...d, label: bucketLabel(d.bucket, group) }));
+  // Render order is stack order: expenses form the left bar, and the largest category sits at the bottom.
+  const all = [...expense, ...income];
+  const incomeIds = new Set(income.map((c) => c.id));
+  const visible = all.filter((c) => !hidden.has(c.id));
 
-  function toggle(key: string) {
+  const rows = data.map((d) => {
+    const row: Record<string, string | number> = { bucket: d.bucket, label: bucketLabel(d.bucket, group) };
+    for (const [id, amount] of Object.entries(d.byCategory)) row[id] = amount;
+    return row;
+  });
+
+  function toggle(id: string) {
     setHidden((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else if (next.size < SERIES.length - 1) next.add(key);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < all.length - 1) next.add(id);
       return next;
     });
   }
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <ul className="flex gap-1" aria-label="Series">
-          {SERIES.map((s) => (
-            <li key={s.key}>
-              <button
-                type="button"
-                aria-pressed={!hidden.has(s.key)}
-                onClick={() => toggle(s.key)}
-                className={`flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-opacity duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring ${
-                  hidden.has(s.key) ? "opacity-45" : ""
-                }`}
-              >
-                <span aria-hidden className="size-3 rounded-sm" style={{ backgroundColor: s.color }} />
-                {s.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-1">
+          {[
+            { label: "Expenses", list: expense },
+            { label: "Income", list: income },
+          ]
+            .filter((g) => g.list.length)
+            .map((g) => (
+              <ul key={g.label} className="flex flex-wrap items-center gap-x-1" aria-label={`${g.label} categories`}>
+                <li className="w-18 shrink-0 text-xs font-medium text-subtle">{g.label}</li>
+                {g.list.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      aria-pressed={!hidden.has(c.id)}
+                      onClick={() => toggle(c.id)}
+                      className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm transition-opacity duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring ${
+                        hidden.has(c.id) ? "opacity-45" : ""
+                      }`}
+                    >
+                      <span aria-hidden className="size-3 rounded-sm" style={{ backgroundColor: c.color }} />
+                      {c.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ))}
+        </div>
         <button
           type="button"
-          className="btn btn-ghost h-9 px-3"
+          className="btn btn-ghost h-9 shrink-0 px-3"
           onClick={() => setView(view === "chart" ? "table" : "chart")}
         >
           {view === "chart" ? <Table2 className="size-4" aria-hidden /> : <ChartColumn className="size-4" aria-hidden />}
@@ -57,9 +91,18 @@ export function CashFlowChart({ data, group, currency }: { data: SeriesPoint[]; 
       </div>
 
       {view === "chart" ? (
-        <div className="h-72 w-full" role="img" aria-label={`Expenses and income per ${group}. Switch to the table view for exact values.`}>
+        <div
+          className="h-72 w-full"
+          role="img"
+          aria-label={`Expenses and income by category per ${group}. Switch to the table view for exact values.`}
+        >
           <ResponsiveContainer>
-            <BarChart data={rows} barGap={2} barCategoryGap={rows.length > 40 ? "10%" : "25%"} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+            <BarChart
+              data={rows}
+              barGap={2}
+              barCategoryGap={rows.length > 40 ? "10%" : "25%"}
+              margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
+            >
               <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
               <XAxis
                 dataKey="label"
@@ -77,10 +120,17 @@ export function CashFlowChart({ data, group, currency }: { data: SeriesPoint[]; 
               />
               <Tooltip
                 cursor={{ fill: "var(--chart-cursor)" }}
-                content={(props) => <ChartTooltip {...props} group={group} currency={currency} />}
+                content={(props) => <ChartTooltip {...props} incomeIds={incomeIds} group={group} currency={currency} />}
               />
-              {SERIES.filter((s) => !hidden.has(s.key)).map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[4, 4, 0, 0]} maxBarSize={36} />
+              {visible.map((c) => (
+                <Bar
+                  key={c.id}
+                  dataKey={c.id}
+                  name={c.name}
+                  stackId={incomeIds.has(c.id) ? "income" : "expense"}
+                  fill={c.color}
+                  maxBarSize={36}
+                />
               ))}
             </BarChart>
           </ResponsiveContainer>
@@ -116,19 +166,46 @@ export function CashFlowChart({ data, group, currency }: { data: SeriesPoint[]; 
   );
 }
 
-function ChartTooltip({ active, payload, group, currency }: TooltipContentProps & { group: Granularity; currency: string }) {
+/** Lists only the categories present in the hovered bucket, grouped into expenses and income. */
+function ChartTooltip({ active, payload, incomeIds, group, currency }: TooltipContentProps & {
+  incomeIds: Set<string>;
+  group: Granularity;
+  currency: string;
+}) {
   if (!active || !payload?.length) return null;
-  const point = payload[0].payload as SeriesPoint;
+  const bucket = String((payload[0].payload as { bucket: string }).bucket);
+  const entries = payload.filter((p) => Number(p.value));
+  const sections = [
+    { label: "Expenses", items: entries.filter((p) => !incomeIds.has(String(p.dataKey))) },
+    { label: "Income", items: entries.filter((p) => incomeIds.has(String(p.dataKey))) },
+  ].filter((s) => s.items.length);
+
   return (
-    <div className="rounded-lg border border-line bg-surface-strong px-3 py-2 text-sm shadow-lg">
-      <p className="mb-1 font-medium">{bucketTitle(point.bucket, group)}</p>
-      {payload.map((p) => (
-        <p key={String(p.dataKey)} className="flex items-center gap-2 text-muted">
-          <span aria-hidden className="size-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
-          {p.name}
-          <span className="tabular ml-auto pl-4 font-medium text-fg">{formatMoney(Number(p.value), currency)}</span>
-        </p>
-      ))}
+    <div className="min-w-48 rounded-lg border border-line bg-surface-strong px-3 py-2 text-sm shadow-lg">
+      <p className="mb-1 font-medium">{bucketTitle(bucket, group)}</p>
+      {sections.length === 0 && <p className="text-muted">No transactions</p>}
+      {sections.map((s) => {
+        const total = s.items.reduce((sum, p) => sum + Number(p.value), 0);
+        return (
+          <div key={s.label} className="mt-1.5 first-of-type:mt-0">
+            <p className="flex text-xs font-medium text-subtle">
+              {s.label}
+              <span className="tabular ml-auto pl-4">{formatMoney(total, currency)}</span>
+            </p>
+            {[...s.items]
+              .sort((a, b) => Number(b.value) - Number(a.value))
+              .map((p) => (
+                <p key={String(p.dataKey)} className="flex items-center gap-2 text-muted">
+                  <span aria-hidden className="size-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
+                  {p.name}
+                  <span className="tabular ml-auto pl-4 font-medium text-fg">
+                    {formatMoney(Number(p.value), currency)}
+                  </span>
+                </p>
+              ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

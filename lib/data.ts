@@ -333,7 +333,8 @@ export async function dailyTotals(userId: string, from: string, to: string): Pro
 
 // ---------- Summary ----------
 
-export type SeriesPoint = { bucket: string; expense: number; income: number };
+/** `byCategory` maps a top-level category id to its total in the bucket; categories with no transactions are absent. */
+export type SeriesPoint = { bucket: string; expense: number; income: number; byCategory: Record<string, number> };
 export type CategoryTotal = {
   id: string;
   name: string;
@@ -357,13 +358,14 @@ export async function getSummary(userId: string, range: Range): Promise<Summary>
 
   const [seriesRows, categoryRows, cats] = await Promise.all([
     transactions
-      .aggregate<{ _id: { bucket: Date; type: TxType }; total: number; count: number }>([
+      .aggregate<{ _id: { bucket: Date; type: TxType; cat: ObjectId }; total: number; count: number }>([
         { $match: match },
         {
           $group: {
             _id: {
               bucket: { $dateTrunc: { date: "$date", unit: range.group, timezone: "UTC", startOfWeek: "monday" } },
               type: "$type",
+              cat: "$categoryId",
             },
             total: { $sum: "$amount" },
             count: { $sum: 1 },
@@ -387,13 +389,17 @@ export async function getSummary(userId: string, range: Range): Promise<Summary>
   ]);
 
   const series = new Map<string, SeriesPoint>();
-  for (const b of buckets(range.from, range.to, range.group)) series.set(b, { bucket: b, expense: 0, income: 0 });
+  for (const b of buckets(range.from, range.to, range.group)) series.set(b, { bucket: b, expense: 0, income: 0, byCategory: {} });
   let expense = 0;
   let income = 0;
   let count = 0;
   for (const r of seriesRows) {
     const point = series.get(toIso(r._id.bucket));
-    if (point) point[r._id.type] += r.total;
+    if (point) {
+      point[r._id.type] += r.total;
+      const cat = r._id.cat.toHexString();
+      point.byCategory[cat] = (point.byCategory[cat] ?? 0) + r.total;
+    }
     if (r._id.type === "expense") expense += r.total;
     else income += r.total;
     count += r.count;

@@ -69,7 +69,13 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
 
       <div className="grid gap-6 lg:grid-cols-5">
         <Card title="Cash flow" description={`Per ${range.group}`} className="lg:col-span-3">
-          <CashFlowChart data={summary.series} group={range.group} currency={currency} />
+          <CashFlowChart
+            data={summary.series}
+            expense={summary.expenseByCategory}
+            income={summary.incomeByCategory}
+            group={range.group}
+            currency={currency}
+          />
         </Card>
         <Card title="By category" description="Select a category to see subcategories" className="lg:col-span-2">
           <CategoryBreakdown expense={summary.expenseByCategory} income={summary.incomeByCategory} currency={currency} />
