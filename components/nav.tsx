@@ -32,7 +32,7 @@ export function SideNav() {
               active ? "bg-primary/15 text-fg" : "text-muted hover:bg-sunken hover:text-fg"
             }`}
           >
-            <Icon className={`size-5 ${active ? "text-primary dark:text-ring" : ""}`} aria-hidden />
+            <Icon className={`size-5 ${active ? "text-primary" : ""}`} aria-hidden />
             {label}
           </Link>
         );
@@ -59,7 +59,7 @@ export function BottomNav() {
               active ? "text-fg" : "text-subtle"
             }`}
           >
-            <Icon className={`size-5 ${active ? "text-primary dark:text-ring" : ""}`} aria-hidden />
+            <Icon className={`size-5 ${active ? "text-primary" : ""}`} aria-hidden />
             {label}
           </Link>
         );

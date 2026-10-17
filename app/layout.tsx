@@ -10,12 +10,7 @@ export const metadata: Metadata = {
   description: "Track daily expenses and income, set budgets, and see where your money goes.",
 };
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eef2f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1120" },
-  ],
-};
+export const viewport: Viewport = { themeColor: "#fbf7f0" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

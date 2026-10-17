@@ -17,26 +17,27 @@
 
 ### Color Palette
 
-| Role | Hex | CSS Variable |
+| Role | Hex | CSS Variable (app/globals.css) |
 |------|-----|--------------|
-| Primary | `#1E40AF` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#3B82F6` | `--color-secondary` |
-| On Secondary | `#000000` | `--color-on-secondary` |
-| Accent/CTA | `#059669` | `--color-accent` |
-| On Accent/CTA | `#000000` | `--color-on-accent` |
-| Background | `#0F172A` | `--color-background` |
-| Foreground | `#FFFFFF` | `--color-foreground` |
-| Card | `#192134` | `--color-card` |
-| Card Foreground | `#FFFFFF` | `--color-card-foreground` |
-| Muted | `#101A34` | `--color-muted` |
-| Muted Foreground | `#94A3B8` | `--color-muted-foreground` |
-| Border | `rgba(255,255,255,0.08)` | `--color-border` |
-| Destructive | `#DC2626` | `--color-destructive` |
-| On Destructive | `#FFFFFF` | `--color-on-destructive` |
-| Ring | `#FFFFFF` | `--color-ring` |
+| Primary | `#B45309` amber | `--primary` |
+| Primary Hover | `#92400E` | `--primary-hover` |
+| On Primary | `#FFFFFF` | `--on-primary` |
+| Accent / Focus ring | `#7E22CE` plum | `--accent`, `--ring` |
+| Background | `#FBF7F0` warm ivory | `--bg` |
+| Surface (cards) | `rgba(255,255,255,0.80)` | `--surface` |
+| Foreground | `#292524` | `--fg` |
+| Muted Foreground | `#57534E` | `--fg-muted` |
+| Subtle Foreground | `#78716C` | `--fg-subtle` |
+| Border | `rgba(87,52,20,0.10)` | `--border` |
+| Success | `#2F7A55` | `--success` |
+| Warning | `#A15C07` | `--warning` |
+| Destructive | `#B42318` | `--danger` |
+| Chart: Expense | `#D97706` amber | `--series-expense` |
+| Chart: Income | `#7E22CE` plum | `--series-income` |
 
-**Color Notes:** Trust blue + profit green on dark
+**Color Notes:** Warm gold & plum, light only (chosen 2026-10-17 after trying sage & cream, blush & lavender, and monochrome + blue; replaced the original dark navy/blue). Chart pair passes the dataviz validator (CVD ΔE 34.1, all checks pass). White on primary is 5.0:1.
+
+**Typography override:** Inter for everything (the generated Caveat/Quicksand pairing below did not suit a finance app).
 
 ### Typography
 
@@ -113,7 +114,7 @@
 
 ```css
 .card {
-  background: #0F172A;
+  background: #FFFFFF;
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--shadow-md);

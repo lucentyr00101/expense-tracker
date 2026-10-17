@@ -1,74 +1,37 @@
 @import "tailwindcss";
 
-/* Design system: design-system/expense-tracker/MASTER.md (glass, trust blue + profit green).
-   Light values first; dark redefines the same roles. */
+/* Design system: design-system/expense-tracker/MASTER.md — warm gold & plum, light only. */
 :root {
   color-scheme: light;
-  --bg: #eef2f7;
-  --bg-glow-1: rgba(59, 130, 246, 0.18);
-  --bg-glow-2: rgba(5, 150, 105, 0.12);
-  --surface: rgba(255, 255, 255, 0.72);
-  --surface-strong: rgba(255, 255, 255, 0.92);
-  --surface-sunken: rgba(15, 23, 42, 0.04);
-  --border: rgba(15, 23, 42, 0.09);
-  --border-strong: rgba(15, 23, 42, 0.16);
-  --fg: #0f172a;
-  --fg-muted: #475569;
-  --fg-subtle: #64748b;
-  --primary: #1e40af;
-  --primary-hover: #1e3a8a;
+  --bg: #fbf7f0;
+  --bg-glow-1: rgba(217, 119, 6, 0.1);
+  --bg-glow-2: rgba(126, 34, 206, 0.07);
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --surface-sunken: rgba(87, 52, 20, 0.05);
+  --border: rgba(87, 52, 20, 0.1);
+  --border-strong: rgba(87, 52, 20, 0.18);
+  --fg: #292524;
+  --fg-muted: #57534e;
+  --fg-subtle: #78716c;
+  --primary: #b45309;
+  --primary-hover: #92400e;
   --on-primary: #ffffff;
-  --ring: #2563eb;
-  --accent: #047857;
-  --danger: #b91c1c;
-  --danger-soft: rgba(220, 38, 38, 0.1);
-  --success: #047857;
-  --success-soft: rgba(5, 150, 105, 0.12);
-  --warning: #b45309;
-  --warning-soft: rgba(234, 179, 8, 0.16);
+  --ring: #7e22ce;
+  --accent: #7e22ce;
+  --danger: #b42318;
+  --danger-soft: rgba(180, 35, 24, 0.1);
+  --success: #2f7a55;
+  --success-soft: rgba(47, 122, 85, 0.12);
+  --warning: #a15c07;
+  --warning-soft: rgba(202, 138, 4, 0.14);
 
-  /* Chart roles (validated with the dataviz palette checker) */
-  --series-expense: #eb6834;
-  --series-income: #1baf7a;
-  --series-single: #2a78d6;
-  --chart-grid: #e2e8f0;
-  --chart-axis: #64748b;
-  --chart-cursor: rgba(15, 23, 42, 0.05);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg: #0b1120;
-    --bg-glow-1: rgba(37, 99, 235, 0.22);
-    --bg-glow-2: rgba(5, 150, 105, 0.14);
-    --surface: rgba(25, 33, 52, 0.62);
-    --surface-strong: rgba(25, 33, 52, 0.94);
-    --surface-sunken: rgba(255, 255, 255, 0.04);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.16);
-    --fg: #f1f5f9;
-    --fg-muted: #a3b1c6;
-    --fg-subtle: #8494ab;
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --on-primary: #ffffff;
-    --ring: #60a5fa;
-    --accent: #34d399;
-    --danger: #f87171;
-    --danger-soft: rgba(248, 113, 113, 0.12);
-    --success: #34d399;
-    --success-soft: rgba(52, 211, 153, 0.12);
-    --warning: #fbbf24;
-    --warning-soft: rgba(251, 191, 36, 0.12);
-
-    --series-expense: #d95926;
-    --series-income: #199e70;
-    --series-single: #3987e5;
-    --chart-grid: rgba(255, 255, 255, 0.07);
-    --chart-axis: #8494ab;
-    --chart-cursor: rgba(255, 255, 255, 0.05);
-  }
+  /* Chart roles (validated with the dataviz palette checker on white) */
+  --series-expense: #d97706;
+  --series-income: #7e22ce;
+  --chart-grid: #efe8dc;
+  --chart-axis: #78716c;
+  --chart-cursor: rgba(87, 52, 20, 0.05);
 }
 
 @theme inline {
@@ -149,7 +112,7 @@ body {
 }
 
 dialog::backdrop {
-  background: rgba(2, 6, 23, 0.55);
+  background: rgba(41, 26, 12, 0.4);
   backdrop-filter: blur(4px);
 }
 
