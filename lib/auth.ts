@@ -4,7 +4,18 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { nextCookies } from "better-auth/next-js";
 import { client, db } from "./db";
 
+// Vercel exposes these without a protocol; trust them so production and preview deploys can sign in.
+const vercelOrigins = [
+  process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  process.env.VERCEL_BRANCH_URL,
+  process.env.VERCEL_URL,
+]
+  .filter(Boolean)
+  .map((host) => `https://${host}`);
+
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL ?? vercelOrigins[0],
+  trustedOrigins: vercelOrigins,
   database: mongodbAdapter(db, { client }),
   socialProviders: {
     google: {
