@@ -56,12 +56,8 @@ export function ensureSetup(): Promise<void> {
       transactions: db.collection("transactions"),
       budgets: db.collection("budgets"),
     };
-    await legacy.transactions.updateMany({ userId: { $exists: true }, createdBy: { $exists: false } }, [
-      { $set: { createdBy: "$userId" } },
-    ]);
-    for (const collection of Object.values(legacy)) {
-      await collection.updateMany({ userId: { $exists: true } }, { $rename: { userId: "ledgerId" } });
-    }
+    // Drop the old indexes first: a unique {userId, categoryId} index would see a renamed budget as
+    // (null, categoryId) and reject the next one.
     for (const [collection, name] of [
       [legacy.categories, "userId_1_type_1"],
       [legacy.transactions, "userId_1_date_-1"],
@@ -70,6 +66,13 @@ export function ensureSetup(): Promise<void> {
       await collection.dropIndex(name).catch((error) => {
         if (error?.codeName !== "IndexNotFound" && error?.codeName !== "NamespaceNotFound") throw error;
       });
+    }
+
+    await legacy.transactions.updateMany({ userId: { $exists: true }, createdBy: { $exists: false } }, [
+      { $set: { createdBy: "$userId" } },
+    ]);
+    for (const collection of Object.values(legacy)) {
+      await collection.updateMany({ userId: { $exists: true } }, { $rename: { userId: "ledgerId" } });
     }
 
     await Promise.all([
