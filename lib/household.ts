@@ -1,5 +1,5 @@
 import "server-only";
-import { ObjectId, type ClientSession } from "mongodb";
+import { MongoServerError, ObjectId, type ClientSession } from "mongodb";
 import { client, db } from "./db";
 import { countLedgerData, deleteLedgerData, ensureSetup, getSettings, mergeLedgerInto } from "./data";
 
@@ -177,14 +177,21 @@ export async function createInvite(ctx: LedgerContext, email: string, role: Invi
 
   // The first invite turns the owner's ledger into a household.
   const household = ctx.householdId
-    ? { _id: new ObjectId(ctx.householdId) }
-    : await households.findOneAndUpdate(
-        { ledgerId: ctx.ledgerId },
-        { $setOnInsert: { ownerId: ctx.userId, members: [{ userId: ctx.userId, role: "owner", joinedAt: new Date() }] } },
-        { upsert: true, returnDocument: "after" },
-      );
+    ? { _id: new ObjectId(ctx.householdId), ownerId: ctx.userId }
+    : await households
+        .findOneAndUpdate(
+          { ledgerId: ctx.ledgerId },
+          { $setOnInsert: { ownerId: ctx.userId, members: [{ userId: ctx.userId, role: "owner", joinedAt: new Date() }] } },
+          { upsert: true, returnDocument: "after" },
+        )
+        .catch((error) => {
+          // Two first invites at once both try to insert; the loser reads the winner's household.
+          if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
+          return households.findOne({ ledgerId: ctx.ledgerId });
+        });
+  if (!household || household.ownerId !== ctx.userId) return OWNER_ONLY;
   await invites.updateOne(
-    { householdId: household!._id, email: normalized },
+    { householdId: household._id, email: normalized },
     { $set: { role, invitedBy: ctx.userId }, $setOnInsert: { createdAt: new Date() } },
     { upsert: true },
   );
