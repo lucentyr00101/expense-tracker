@@ -79,15 +79,22 @@ export function ensureSetup(): Promise<void> {
     ]);
     // Old code still running during the deploy (or after a rollback) can write a legacy budget for a
     // category its ledger already budgets. The migrated row wins and the legacy one is dropped.
+    // Another process may rename `doc` after our read, so never match it against itself, and only
+    // delete it while it is still legacy.
+    const dropLegacy = (id: ObjectId) => legacy.budgets.deleteOne({ _id: id, userId: { $exists: true } });
     for (const doc of await legacy.budgets.find({ userId: { $exists: true } }).toArray()) {
-      const migrated = await legacy.budgets.findOne({ ledgerId: doc.userId, categoryId: doc.categoryId });
+      const migrated = await legacy.budgets.findOne({
+        _id: { $ne: doc._id },
+        ledgerId: doc.userId,
+        categoryId: doc.categoryId,
+      });
       if (migrated) {
-        await legacy.budgets.deleteOne({ _id: doc._id });
+        await dropLegacy(doc._id);
         continue;
       }
       await legacy.budgets.updateOne({ _id: doc._id }, { $rename: { userId: "ledgerId" } }).catch(async (error) => {
         if (error?.code !== 11000) throw error;
-        await legacy.budgets.deleteOne({ _id: doc._id }); // another process migrated a twin first
+        await dropLegacy(doc._id); // another process migrated a twin first
       });
     }
     // Before the unique index exists, concurrent cold starts could still leave twins: keep the oldest.
