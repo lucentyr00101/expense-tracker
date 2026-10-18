@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <p className="text-sm text-subtle">Effective October 18, 2026</p>
 
       <p>
-        Ledgerly is a personal expense tracker. This policy explains what information Ledgerly collects when you use
+        Pursely is a personal expense tracker. This policy explains what information Pursely collects when you use
         it, how that information is used, and the choices you have.
       </p>
 
@@ -35,14 +35,14 @@ export default function PrivacyPage() {
         <li>To let you share a ledger with the members of your household.</li>
       </ul>
       <p>
-        We do not sell your information, use it for advertising, or use it to train machine learning models. Ledgerly
+        We do not sell your information, use it for advertising, or use it to train machine learning models. Pursely
         does not use analytics or tracking tools.
       </p>
 
       <h2>Google user data</h2>
       <p>
-        Ledgerly requests only the basic Google scopes needed for sign-in (your name, email address and profile
-        picture). Ledgerly&apos;s use and transfer of information received from Google APIs adheres to the{" "}
+        Pursely requests only the basic Google scopes needed for sign-in (your name, email address and profile
+        picture). Pursely&apos;s use and transfer of information received from Google APIs adheres to the{" "}
         <a href="https://developers.google.com/terms/api-services-user-data-policy">
           Google API Services User Data Policy
         </a>
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2>Cookies</h2>
-      <p>Ledgerly sets only the cookies it needs to work:</p>
+      <p>Pursely sets only the cookies it needs to work:</p>
       <ul>
         <li>Session cookies that keep you signed in.</li>
         <li>A timezone cookie so that &quot;today&quot; matches your local date.</li>
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
           along with your name, email address and profile picture.
         </li>
         <li>
-          <strong>Service providers.</strong> Ledgerly is hosted on Vercel and stores data in MongoDB Atlas. Google
+          <strong>Service providers.</strong> Pursely is hosted on Vercel and stores data in MongoDB Atlas. Google
           provides sign-in. These providers process data only to run the service.
         </li>
         <li>
@@ -88,12 +88,12 @@ export default function PrivacyPage() {
       </p>
 
       <h2>Children</h2>
-      <p>Ledgerly is not meant for children under 13, and we don&apos;t knowingly collect their information.</p>
+      <p>Pursely is not meant for children under 13, and we don&apos;t knowingly collect their information.</p>
 
       <h2>Changes to this policy</h2>
       <p>
         If this policy changes, the new version will be posted here with a new effective date. Continuing to use
-        Ledgerly after a change means you accept the updated policy.
+        Pursely after a change means you accept the updated policy.
       </p>
 
       <h2>Contact</h2>
