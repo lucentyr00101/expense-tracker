@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
-import { getToday, getUser } from "@/lib/session";
+import { getToday, getLedger } from "@/lib/session";
 import { dailyTotals, getSettings, listCategories, listTransactions } from "@/lib/data";
 import { addDays, formatDate, isIsoDate, startOf } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -22,15 +22,15 @@ export default function TransactionsPage({ searchParams }: PageProps<"/transacti
 }
 
 async function Daily({ searchParams }: { searchParams: PageProps<"/transactions">["searchParams"] }) {
-  const [user, today, params] = await Promise.all([getUser(), getToday(), searchParams]);
+  const [ledger, today, params] = await Promise.all([getLedger(), getToday(), searchParams]);
   const date = isIsoDate(params.date) ? params.date : today;
   const weekStart = startOf(date, "week");
 
   const [categories, settings, transactions, week] = await Promise.all([
-    listCategories(user.id),
-    getSettings(user.id),
-    listTransactions(user.id, date, date),
-    dailyTotals(user.id, weekStart, addDays(weekStart, 6)),
+    listCategories(ledger.ledgerId),
+    getSettings(ledger.ledgerId),
+    listTransactions(ledger.ledgerId, date, date),
+    dailyTotals(ledger.ledgerId, weekStart, addDays(weekStart, 6)),
   ]);
   const { currency } = settings;
   const spent = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);

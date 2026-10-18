@@ -9,7 +9,7 @@ import { DEFAULT_CURRENCY } from "./money";
 
 type CategoryDoc = {
   _id: ObjectId;
-  userId: string | null; // null = system category
+  ledgerId: string | null; // null = system category
   key?: string;
   name: string;
   type: TxType;
@@ -22,7 +22,8 @@ type CategoryDoc = {
 
 type TransactionDoc = {
   _id: ObjectId;
-  userId: string;
+  ledgerId: string;
+  createdBy: string; // userId of whoever entered it
   type: TxType;
   amount: number; // cents
   categoryId: ObjectId; // top-level category
@@ -33,8 +34,8 @@ type TransactionDoc = {
   updatedAt: Date;
 };
 
-type BudgetDoc = { _id: ObjectId; userId: string; categoryId: ObjectId; amount: number };
-type SettingsDoc = { _id: string; currency: string }; // _id = userId
+type BudgetDoc = { _id: ObjectId; ledgerId: string; categoryId: ObjectId; amount: number };
+type SettingsDoc = { _id: string; currency: string }; // _id = ledgerId
 
 const categories = db.collection<CategoryDoc>("categories");
 const transactions = db.collection<TransactionDoc>("transactions");
@@ -45,14 +46,37 @@ const settings = db.collection<SettingsDoc>("settings");
 
 let setup: Promise<void> | null = null;
 
-/** Create indexes and seed system categories, once per server process. */
-function ensureSetup(): Promise<void> {
+/** Migrate userId to ledgerId, create indexes and seed system categories, once per server process. */
+export function ensureSetup(): Promise<void> {
   setup ??= (async () => {
+    // Legacy per-user data becomes per-ledger data (a solo user's ledger id is their user id).
+    // Every step is a no-op once everything is converted.
+    const legacy = {
+      categories: db.collection("categories"),
+      transactions: db.collection("transactions"),
+      budgets: db.collection("budgets"),
+    };
+    await legacy.transactions.updateMany({ userId: { $exists: true }, createdBy: { $exists: false } }, [
+      { $set: { createdBy: "$userId" } },
+    ]);
+    for (const collection of Object.values(legacy)) {
+      await collection.updateMany({ userId: { $exists: true } }, { $rename: { userId: "ledgerId" } });
+    }
+    for (const [collection, name] of [
+      [legacy.categories, "userId_1_type_1"],
+      [legacy.transactions, "userId_1_date_-1"],
+      [legacy.budgets, "userId_1_categoryId_1"],
+    ] as const) {
+      await collection.dropIndex(name).catch((error) => {
+        if (error?.codeName !== "IndexNotFound" && error?.codeName !== "NamespaceNotFound") throw error;
+      });
+    }
+
     await Promise.all([
-      categories.createIndex({ userId: 1, type: 1 }),
+      categories.createIndex({ ledgerId: 1, type: 1 }),
       categories.createIndex({ key: 1 }, { unique: true, partialFilterExpression: { key: { $type: "string" } } }),
-      transactions.createIndex({ userId: 1, date: -1 }),
-      budgets.createIndex({ userId: 1, categoryId: 1 }, { unique: true }),
+      transactions.createIndex({ ledgerId: 1, date: -1 }),
+      budgets.createIndex({ ledgerId: 1, categoryId: 1 }, { unique: true }),
     ]);
 
     const now = new Date();
@@ -62,7 +86,7 @@ function ensureSetup(): Promise<void> {
           { key: def.key },
           {
             $set: { name: def.name, icon: def.icon, color: def.color },
-            $setOnInsert: { userId: null, type, parentId: null, archivedAt: null, createdAt: now },
+            $setOnInsert: { ledgerId: null, type, parentId: null, archivedAt: null, createdAt: now },
           },
           { upsert: true, returnDocument: "after" },
         );
@@ -71,7 +95,7 @@ function ensureSetup(): Promise<void> {
             { key: `${def.key}/${child}` },
             {
               $set: { name: child, icon: def.icon, color: def.color },
-              $setOnInsert: { userId: null, type, parentId: parent!._id, archivedAt: null, createdAt: now },
+              $setOnInsert: { ledgerId: null, type, parentId: parent!._id, archivedAt: null, createdAt: now },
             },
             { upsert: true },
           );
@@ -89,13 +113,13 @@ function ensureSetup(): Promise<void> {
 
 export type Settings = { currency: string };
 
-export async function getSettings(userId: string): Promise<Settings> {
-  const doc = await settings.findOne({ _id: userId });
+export async function getSettings(ledgerId: string): Promise<Settings> {
+  const doc = await settings.findOne({ _id: ledgerId });
   return { currency: doc?.currency ?? DEFAULT_CURRENCY };
 }
 
-export async function updateSettings(userId: string, patch: Settings): Promise<void> {
-  await settings.updateOne({ _id: userId }, { $set: patch }, { upsert: true });
+export async function updateSettings(ledgerId: string, patch: Settings): Promise<void> {
+  await settings.updateOne({ _id: ledgerId }, { $set: patch }, { upsert: true });
 }
 
 // ---------- Categories ----------
@@ -121,21 +145,21 @@ function toCategory(doc: CategoryDoc): Category {
     icon: doc.icon,
     color: doc.color,
     parentId: doc.parentId?.toHexString() ?? null,
-    isSystem: doc.userId === null,
+    isSystem: doc.ledgerId === null,
     archived: doc.archivedAt !== null,
   };
 }
 
-const visibleTo = (userId: string): Filter<CategoryDoc> => ({ userId: { $in: [null, userId] } });
+const visibleTo = (ledgerId: string): Filter<CategoryDoc> => ({ ledgerId: { $in: [null, ledgerId] } });
 
 /** System + the user's categories as a tree, system ones first. */
 export async function listCategories(
-  userId: string,
+  ledgerId: string,
   { includeArchived = false }: { includeArchived?: boolean } = {},
 ): Promise<CategoryNode[]> {
   await ensureSetup();
   const docs = await categories
-    .find({ ...visibleTo(userId), ...(includeArchived ? {} : { archivedAt: null }) })
+    .find({ ...visibleTo(ledgerId), ...(includeArchived ? {} : { archivedAt: null }) })
     .sort({ createdAt: 1, _id: 1 })
     .toArray();
 
@@ -150,32 +174,32 @@ export async function listCategories(
     .map((c) => ({ ...c, children: byParent.get(c.id) ?? [] }));
 }
 
-async function findUsableCategory(userId: string, id: string) {
+async function findUsableCategory(ledgerId: string, id: string) {
   if (!ObjectId.isValid(id)) return null;
-  return categories.findOne({ _id: new ObjectId(id), ...visibleTo(userId), archivedAt: null });
+  return categories.findOne({ _id: new ObjectId(id), ...visibleTo(ledgerId), archivedAt: null });
 }
 
-async function findOwnCategory(userId: string, id: string) {
+async function findOwnCategory(ledgerId: string, id: string) {
   if (!ObjectId.isValid(id)) return null;
-  return categories.findOne({ _id: new ObjectId(id), userId });
+  return categories.findOne({ _id: new ObjectId(id), ledgerId });
 }
 
 export async function createCategory(
-  userId: string,
+  ledgerId: string,
   input: { name: string; type: TxType; icon: IconKey; color: string; parentId: string | null },
 ): Promise<string | null> {
   await ensureSetup();
   let parentId: ObjectId | null = null;
   let type = input.type;
   if (input.parentId) {
-    const parent = await findUsableCategory(userId, input.parentId);
+    const parent = await findUsableCategory(ledgerId, input.parentId);
     if (!parent || parent.parentId) return "Pick a top-level parent category.";
     parentId = parent._id;
     type = parent.type;
   }
 
   const duplicate = await categories.findOne({
-    ...visibleTo(userId),
+    ...visibleTo(ledgerId),
     type,
     parentId,
     archivedAt: null,
@@ -185,7 +209,7 @@ export async function createCategory(
 
   await categories.insertOne({
     _id: new ObjectId(),
-    userId,
+    ledgerId,
     name: input.name,
     type,
     icon: input.icon,
@@ -198,26 +222,26 @@ export async function createCategory(
 }
 
 export async function updateCategory(
-  userId: string,
+  ledgerId: string,
   id: string,
   input: { name: string; icon: IconKey; color: string },
 ): Promise<string | null> {
-  const doc = await findOwnCategory(userId, id);
-  if (!doc) return "Only your own categories can be edited.";
+  const doc = await findOwnCategory(ledgerId, id);
+  if (!doc) return "Only custom categories can be edited.";
   await categories.updateOne({ _id: doc._id }, { $set: input });
   return null;
 }
 
 /** Archive rather than delete, so past transactions keep their category. */
-export async function archiveCategory(userId: string, id: string): Promise<string | null> {
-  const doc = await findOwnCategory(userId, id);
-  if (!doc) return "Only your own categories can be removed.";
+export async function archiveCategory(ledgerId: string, id: string): Promise<string | null> {
+  const doc = await findOwnCategory(ledgerId, id);
+  if (!doc) return "Only custom categories can be removed.";
   const now = new Date();
   await categories.updateMany(
-    { userId, $or: [{ _id: doc._id }, { parentId: doc._id }] },
+    { ledgerId, $or: [{ _id: doc._id }, { parentId: doc._id }] },
     { $set: { archivedAt: now } },
   );
-  await budgets.deleteMany({ userId, categoryId: doc._id });
+  await budgets.deleteMany({ ledgerId, categoryId: doc._id });
   return null;
 }
 
@@ -235,6 +259,7 @@ export type Transaction = {
   note: string;
   categoryId: string;
   subcategoryId: string | null;
+  createdBy: string;
 };
 
 export type TransactionInput = {
@@ -246,22 +271,27 @@ export type TransactionInput = {
 };
 
 /** Resolve a picked category id into (top-level, subcategory). */
-async function resolveCategory(userId: string, type: TxType, id: string) {
-  const doc = await findUsableCategory(userId, id);
+async function resolveCategory(ledgerId: string, type: TxType, id: string) {
+  const doc = await findUsableCategory(ledgerId, id);
   if (!doc || doc.type !== type) return null;
   return doc.parentId
     ? { categoryId: doc.parentId, subcategoryId: doc._id }
     : { categoryId: doc._id, subcategoryId: null };
 }
 
-export async function createTransaction(userId: string, input: TransactionInput): Promise<string | null> {
+export async function createTransaction(
+  ledgerId: string,
+  createdBy: string,
+  input: TransactionInput,
+): Promise<string | null> {
   await ensureSetup();
-  const resolved = await resolveCategory(userId, input.type, input.categoryId);
+  const resolved = await resolveCategory(ledgerId, input.type, input.categoryId);
   if (!resolved) return "Pick a valid category.";
   const now = new Date();
   await transactions.insertOne({
     _id: new ObjectId(),
-    userId,
+    ledgerId,
+    createdBy,
     type: input.type,
     amount: input.amount,
     note: input.note,
@@ -273,12 +303,12 @@ export async function createTransaction(userId: string, input: TransactionInput)
   return null;
 }
 
-export async function updateTransaction(userId: string, id: string, input: TransactionInput): Promise<string | null> {
+export async function updateTransaction(ledgerId: string, id: string, input: TransactionInput): Promise<string | null> {
   if (!ObjectId.isValid(id)) return "Transaction not found.";
-  const resolved = await resolveCategory(userId, input.type, input.categoryId);
+  const resolved = await resolveCategory(ledgerId, input.type, input.categoryId);
   if (!resolved) return "Pick a valid category.";
   const result = await transactions.updateOne(
-    { _id: new ObjectId(id), userId },
+    { _id: new ObjectId(id), ledgerId },
     {
       $set: {
         type: input.type,
@@ -293,18 +323,18 @@ export async function updateTransaction(userId: string, id: string, input: Trans
   return result.matchedCount ? null : "Transaction not found.";
 }
 
-export async function deleteTransaction(userId: string, id: string): Promise<void> {
+export async function deleteTransaction(ledgerId: string, id: string): Promise<void> {
   if (!ObjectId.isValid(id)) return;
-  await transactions.deleteOne({ _id: new ObjectId(id), userId });
+  await transactions.deleteOne({ _id: new ObjectId(id), ledgerId });
 }
 
-const inRange = (userId: string, from: string, to: string): Filter<TransactionDoc> => ({
-  userId,
+const inRange = (ledgerId: string, from: string, to: string): Filter<TransactionDoc> => ({
+  ledgerId,
   date: { $gte: toUtc(from), $lte: toUtc(to) },
 });
 
-export async function listTransactions(userId: string, from: string, to: string): Promise<Transaction[]> {
-  const docs = await transactions.find(inRange(userId, from, to)).sort({ date: -1, createdAt: -1 }).toArray();
+export async function listTransactions(ledgerId: string, from: string, to: string): Promise<Transaction[]> {
+  const docs = await transactions.find(inRange(ledgerId, from, to)).sort({ date: -1, createdAt: -1 }).toArray();
   return docs.map((d) => ({
     id: d._id.toHexString(),
     type: d.type,
@@ -313,15 +343,16 @@ export async function listTransactions(userId: string, from: string, to: string)
     note: d.note,
     categoryId: d.categoryId.toHexString(),
     subcategoryId: d.subcategoryId?.toHexString() ?? null,
+    createdBy: d.createdBy,
   }));
 }
 
 export type DayTotal = { date: string; expense: number; income: number };
 
-export async function dailyTotals(userId: string, from: string, to: string): Promise<DayTotal[]> {
+export async function dailyTotals(ledgerId: string, from: string, to: string): Promise<DayTotal[]> {
   const rows = await transactions
     .aggregate<{ _id: { date: Date; type: TxType }; total: number }>([
-      { $match: inRange(userId, from, to) },
+      { $match: inRange(ledgerId, from, to) },
       { $group: { _id: { date: "$date", type: "$type" }, total: { $sum: "$amount" } } },
     ])
     .toArray();
@@ -353,8 +384,8 @@ export type Summary = {
   incomeByCategory: CategoryTotal[];
 };
 
-export async function getSummary(userId: string, range: Range): Promise<Summary> {
-  const match = inRange(userId, range.from, range.to);
+export async function getSummary(ledgerId: string, range: Range): Promise<Summary> {
+  const match = inRange(ledgerId, range.from, range.to);
 
   const [seriesRows, categoryRows, cats] = await Promise.all([
     transactions
@@ -385,7 +416,7 @@ export async function getSummary(userId: string, range: Range): Promise<Summary>
         },
       ])
       .toArray(),
-    listCategories(userId, { includeArchived: true }),
+    listCategories(ledgerId, { includeArchived: true }),
   ]);
 
   const series = new Map<string, SeriesPoint>();
@@ -464,13 +495,13 @@ export type BudgetStatus = {
 };
 
 /** Every top-level expense category with its monthly budget (if any) and spend for the month. */
-export async function getBudgetStatus(userId: string, monthStart: string, monthEnd: string): Promise<BudgetStatus[]> {
+export async function getBudgetStatus(ledgerId: string, monthStart: string, monthEnd: string): Promise<BudgetStatus[]> {
   const [cats, budgetDocs, spentRows] = await Promise.all([
-    listCategories(userId),
-    budgets.find({ userId }).toArray(),
+    listCategories(ledgerId),
+    budgets.find({ ledgerId }).toArray(),
     transactions
       .aggregate<{ _id: ObjectId; total: number }>([
-        { $match: { ...inRange(userId, monthStart, monthEnd), type: "expense" } },
+        { $match: { ...inRange(ledgerId, monthStart, monthEnd), type: "expense" } },
         { $group: { _id: "$categoryId", total: { $sum: "$amount" } } },
       ])
       .toArray(),
@@ -489,23 +520,23 @@ export async function getBudgetStatus(userId: string, monthStart: string, monthE
     }));
 }
 
-export async function setBudget(userId: string, categoryId: string, amount: number | null): Promise<string | null> {
-  const cat = await findUsableCategory(userId, categoryId);
+export async function setBudget(ledgerId: string, categoryId: string, amount: number | null): Promise<string | null> {
+  const cat = await findUsableCategory(ledgerId, categoryId);
   if (!cat || cat.type !== "expense" || cat.parentId) return "Budgets apply to top-level expense categories.";
   if (amount === null) {
-    await budgets.deleteOne({ userId, categoryId: cat._id });
+    await budgets.deleteOne({ ledgerId, categoryId: cat._id });
   } else {
-    await budgets.updateOne({ userId, categoryId: cat._id }, { $set: { amount } }, { upsert: true });
+    await budgets.updateOne({ ledgerId, categoryId: cat._id }, { $set: { amount } }, { upsert: true });
   }
   return null;
 }
 
 // ---------- Export ----------
 
-export async function exportRows(userId: string, from: string, to: string) {
+export async function exportRows(ledgerId: string, from: string, to: string) {
   const [txs, cats] = await Promise.all([
-    listTransactions(userId, from, to),
-    listCategories(userId, { includeArchived: true }),
+    listTransactions(ledgerId, from, to),
+    listCategories(ledgerId, { includeArchived: true }),
   ]);
   const names = new Map<string, string>();
   for (const c of cats) {

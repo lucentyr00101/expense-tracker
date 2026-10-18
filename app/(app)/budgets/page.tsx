@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getToday, getUser } from "@/lib/session";
+import { getToday, getLedger } from "@/lib/session";
 import { getBudgetStatus, getSettings } from "@/lib/data";
 import { addMonths, endOf, formatDate, isIsoDate, startOf } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -25,14 +25,14 @@ export default function BudgetsPage({ searchParams }: PageProps<"/budgets">) {
 }
 
 async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["searchParams"] }) {
-  const [user, today, params] = await Promise.all([getUser(), getToday(), searchParams]);
+  const [ledger, today, params] = await Promise.all([getLedger(), getToday(), searchParams]);
   const requested = `${params.month}-01`;
   const thisMonth = startOf(today, "month");
   const month = isIsoDate(requested) && requested <= thisMonth ? requested : thisMonth;
 
   const [rows, { currency }] = await Promise.all([
-    getBudgetStatus(user.id, month, endOf(month, "month")),
-    getSettings(user.id),
+    getBudgetStatus(ledger.ledgerId, month, endOf(month, "month")),
+    getSettings(ledger.ledgerId),
   ]);
   const withBudget = rows.filter((r) => r.budget !== null);
   const totalBudget = withBudget.reduce((s, r) => s + r.budget!, 0);

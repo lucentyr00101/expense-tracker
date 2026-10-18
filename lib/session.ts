@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { auth } from "./auth";
 import { todayIn } from "./dates";
+import { resolveLedger, type LedgerContext } from "./household";
 
 export type SessionUser = { id: string; name: string; email: string; image: string | null };
 
@@ -16,10 +17,16 @@ export const getUser = cache(async (): Promise<SessionUser> => {
   return { id, name, email, image: image ?? null };
 });
 
+/** The signed-in user plus the ledger they work in, or a redirect to the sign-in page. Deduped per request. */
+export const getLedger = cache(async (): Promise<LedgerContext & { user: SessionUser }> => {
+  const user = await getUser();
+  return { ...(await resolveLedger(user.id)), user };
+});
+
 /** For Server Actions and route handlers: null instead of a redirect. */
-export async function getUserId(): Promise<string | null> {
+export async function getLedgerContext(): Promise<LedgerContext | null> {
   const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user.id ?? null;
+  return session ? resolveLedger(session.user.id) : null;
 }
 
 /** The viewer's timezone, written to a cookie by <TimezoneCookie />. */

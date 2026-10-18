@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { getToday, getUser } from "@/lib/session";
+import { getToday, getLedger } from "@/lib/session";
 import { getSettings } from "@/lib/data";
 import { startOf } from "@/lib/dates";
 import { CurrencyForm, ExportForm } from "@/components/settings-forms";
@@ -28,8 +28,8 @@ export default function SettingsPage() {
 }
 
 async function Preferences() {
-  const [user, today] = await Promise.all([getUser(), getToday()]);
-  const { currency } = await getSettings(user.id);
+  const [ledger, today] = await Promise.all([getLedger(), getToday()]);
+  const { currency } = await getSettings(ledger.ledgerId);
   return (
     <>
       <Card title="Currency">

@@ -1,4 +1,4 @@
-import { getUserId } from "@/lib/session";
+import { getLedgerContext } from "@/lib/session";
 import { exportRows } from "@/lib/data";
 import { isIsoDate } from "@/lib/dates";
 
@@ -11,8 +11,8 @@ function csvCell(value: string) {
 }
 
 export async function GET(request: Request) {
-  const userId = await getUserId();
-  if (!userId) return new Response("Unauthorized", { status: 401 });
+  const ctx = await getLedgerContext();
+  if (!ctx) return new Response("Unauthorized", { status: 401 });
 
   const params = new URL(request.url).searchParams;
   const from = params.get("from");
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     return new Response("Invalid date range", { status: 400 });
   }
 
-  const rows = await exportRows(userId, from, to);
+  const rows = await exportRows(ctx.ledgerId, from, to);
   const csv = [COLUMNS.join(","), ...rows.map((r) => COLUMNS.map((c) => csvCell(r[c])).join(","))].join("\r\n");
 
   return new Response("﻿" + csv, {
