@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { InviteBanner } from "@/components/invite-banner";
 import { Logo } from "@/components/logo";
 import { BottomNav, LogoLink, SideNav } from "@/components/nav";
 import { UserMenu, UserMenuSkeleton } from "@/components/user-menu";
@@ -20,7 +21,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         <Logo />
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:pb-12">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:pb-12">
+        <Suspense fallback={null}>
+          <InviteBanner />
+        </Suspense>
+        {children}
+      </main>
       <BottomNav />
     </div>
   );
