@@ -1,10 +1,8 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { headers } from "next/headers";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
-import { getLedgerContext } from "@/lib/session";
+import { getLedgerContext, getSession } from "@/lib/session";
 import * as household from "@/lib/household";
 import type { LedgerContext } from "@/lib/household";
 import * as data from "@/lib/data";
@@ -223,7 +221,7 @@ export async function respondToInvite(
   if (!isId(inviteId)) return fail(BAD_ID);
   const parsed = responseSchema.safeParse(response);
   if (!parsed.success) return fail("Choose what to do with this invitation.");
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   const ctx = session ? await getLedgerContext() : null;
   if (!session || !ctx) return fail("Your session expired. Sign in again.");
   if (parsed.data === "decline") {
