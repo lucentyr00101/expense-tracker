@@ -8,6 +8,8 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: { default: "Ledgerly", template: "%s · Ledgerly" },
   description: "Track daily expenses and income, set budgets, and see where your money goes.",
+  // Search Console ownership proof for the Google OAuth branding page.
+  verification: { google: "HpEYBuoAYjQIzebFQ0ncemNegruVD64vubsV0vuMCVM" },
 };
 
 export const viewport: Viewport = { themeColor: "#fbf7f0" };
