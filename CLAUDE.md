@@ -50,9 +50,9 @@ If the dev server keeps serving old CSS after `app/globals.css` changes, the Tur
 - `ledgerId` (not `userId`) scopes `categories`, `transactions` and `budgets`. `transactions` also carry `createdBy`, shown as the author avatar. Legacy `userId` docs are renamed to `ledgerId` (with `createdBy` set) by the migration at the top of `ensureSetup()`, which `resolveLedger` runs on first use.
 - `budgets`: one monthly amount per top-level expense category, repeating every month.
 - `settings`: `_id` is the ledgerId; holds `currency` (display only, no conversion).
-- `households`: `{ ledgerId, ownerId, members: [{ userId, role, joinedAt }] }`. One household per user (unique index on `members.userId`). Its ledger id is the original owner's. A household of one is dissolved and the owner keeps the ledger.
-- `invites`: `{ householdId, email, role, invitedBy }`, for registered emails only. Accepting offers merge (move the invitee's data into the household) or replace (delete it). Leaving or removal gives the user an empty ledger.
-- `userLedgers`: `_id` is the userId; pins a user to a fresh empty ledger after leaving or removal.
+- `households`: `{ ledgerId, ownerId, members: [{ userId, role, joinedAt }] }`. One household per user (unique index on `members.userId`). Its ledger id is the owner's ledger at first invite. An owner alone in their household who leaves dissolves it and keeps the ledger.
+- `invites`: `{ householdId, email, role, invitedBy }`, for registered emails only. Accepting offers merge (move the invitee's data into the household) or replace (delete it). A member who leaves or is removed gets a fresh empty ledger.
+- `userLedgers`: `_id` is the userId; pins a user to a ledger other than their own id: the fresh one for a departed member, or the household ledger for a remaining owner after a transfer.
 - Better Auth owns `user`, `session`, `account` and `verification`.
 
 **Dates and ranges (`lib/dates.ts`, shared client/server):** calendar dates are `YYYY-MM-DD` strings, and all math is in UTC so the server's timezone never matters. `resolveRange()` turns dashboard URL params (`preset` = today|week|month|year|last|custom, `n`, `unit`, `offset`, `from`, `to`, `group`) into a concrete range and bar size, widening the grouping when it would produce more than 400 bars. Weeks start Monday. Aggregation buckets come from Mongo `$dateTrunc` with `timezone: "UTC"`, `startOfWeek: "monday"`, and empty buckets are filled by `buckets()`.
@@ -65,15 +65,13 @@ If the dev server keeps serving old CSS after `app/globals.css` changes, the Tur
 
 ## Testing signed-in pages
 
-Google sign-in can't be automated. Point `MONGODB_DB` at a non-production database (e.g. `expense-tracker-dev`) and check it first. To render authenticated pages locally, create a test session through Better Auth's internal adapter in a tsx script run with `NODE_OPTIONS=--conditions=react-server` and `.env.local` loaded:
+Google sign-in can't be automated. Point `MONGODB_DB` at a non-production database (e.g. `expense-tracker-dev`) and check it first. To render authenticated pages locally, create a test session through Better Auth's internal adapter in a script run with `bun --conditions=react-server --env-file=.env.local` (`server-only` throws without that condition):
 
 1. Get `(await auth.$context).internalAdapter`.
 2. Call `createUser` and `createSession`.
 3. Set the cookie `better-auth.session_token` to `encodeURIComponent(token + "." + base64(HMAC-SHA256(BETTER_AUTH_SECRET, token)))`.
 4. Drive the browser with `playwright-cli` (`goto`, `screenshot`). `cookie-set` can fail with "Invalid cookie fields": `goto` the origin, then `eval "document.cookie='better-auth.session_token=<value>; path=/'"`. Use one named session (`-s=a`, `-s=b`) per user so each keeps its own cookie.
 5. Delete the test users and their data afterwards (users, sessions, transactions, categories, budgets, settings, households, invites, `userLedgers`).
-
-Scripts that import `lib/*.ts` run with `bun --conditions=react-server --env-file=.env.local` (`server-only` throws without that condition).
 
 ## Git
 
