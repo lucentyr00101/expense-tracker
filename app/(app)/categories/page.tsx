@@ -23,5 +23,5 @@ export default function CategoriesPage() {
 
 async function Categories() {
   const ledger = await getLedger();
-  return <CategoryManager categories={await listCategories(ledger.ledgerId)} />;
+  return <CategoryManager categories={await listCategories(ledger.ledgerId)} canEdit={ledger.role !== "viewer"} />;
 }

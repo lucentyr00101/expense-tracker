@@ -5,11 +5,12 @@ import { LoaderCircle } from "lucide-react";
 import { saveBudget, type ActionState } from "@/app/actions";
 import { centsToInput } from "@/lib/money";
 
-export function BudgetForm({ categoryId, name, budget, currency }: {
+export function BudgetForm({ categoryId, name, budget, currency, canEdit }: {
   categoryId: string;
   name: string;
   budget: number | null;
   currency: string;
+  canEdit: boolean;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveBudget, { ok: false });
   const id = `budget-${categoryId}`;
@@ -26,11 +27,12 @@ export function BudgetForm({ categoryId, name, budget, currency }: {
           inputMode="decimal"
           autoComplete="off"
           placeholder="No limit"
+          disabled={!canEdit}
           defaultValue={budget ? centsToInput(budget) : ""}
           aria-describedby={state.error ? `${id}-error` : undefined}
           className="field tabular h-10 w-32 text-sm"
         />
-        <button type="submit" disabled={pending} className="btn btn-ghost h-10 px-3">
+        <button type="submit" disabled={pending || !canEdit} className="btn btn-ghost h-10 px-3">
           {pending ? <LoaderCircle className="size-4 animate-spin" aria-label="Saving" /> : "Save"}
         </button>
       </div>

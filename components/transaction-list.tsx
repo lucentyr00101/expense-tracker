@@ -21,10 +21,14 @@ export function buildLookup(categories: CategoryNode[]): Lookup {
   return map;
 }
 
-export function TransactionList({ transactions, categories, currency }: {
+type Authors = Record<string, { name: string; image: string | null }>;
+
+export function TransactionList({ transactions, categories, currency, canEdit, authors }: {
   transactions: Transaction[];
   categories: CategoryNode[];
   currency: string;
+  canEdit: boolean;
+  authors?: Authors;
 }) {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
@@ -38,6 +42,7 @@ export function TransactionList({ transactions, categories, currency }: {
           const cat = lookup.get(t.categoryId);
           const sub = t.subcategoryId ? lookup.get(t.subcategoryId) : null;
           const isIncome = t.type === "income";
+          const author = authors?.[t.createdBy];
           return (
             <li key={t.id} className="flex items-center gap-3 py-3">
               <CategoryIcon icon={cat?.icon ?? "tag"} color={cat?.color ?? "#94a3b8"} />
@@ -56,6 +61,8 @@ export function TransactionList({ transactions, categories, currency }: {
                 )}
                 {formatMoney(t.amount, currency)}
               </p>
+              {author && <AuthorAvatar name={author.name} image={author.image} />}
+              {canEdit && (
               <div className="flex">
                 <button type="button" className="icon-btn" aria-label="Edit transaction" onClick={() => setEditing(t)}>
                   <Pencil className="size-4" aria-hidden />
@@ -64,6 +71,7 @@ export function TransactionList({ transactions, categories, currency }: {
                   <Trash2 className="size-4" aria-hidden />
                 </button>
               </div>
+              )}
             </li>
           );
         })}
@@ -85,6 +93,28 @@ export function TransactionList({ transactions, categories, currency }: {
         {deleting && <ConfirmDelete transaction={deleting} currency={currency} onDone={() => setDeleting(null)} />}
       </Modal>
     </>
+  );
+}
+
+function AuthorAvatar({ name, image }: { name: string; image: string | null }) {
+  return image ? (
+    // eslint-disable-next-line @next/next/no-img-element -- Google avatar, tiny and remote
+    <img
+      src={image}
+      alt={`Added by ${name}`}
+      title={name}
+      className="size-5 shrink-0 rounded-full"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span
+      role="img"
+      title={name}
+      aria-label={`Added by ${name}`}
+      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-on-primary"
+    >
+      {name.charAt(0).toUpperCase()}
+    </span>
   );
 }
 

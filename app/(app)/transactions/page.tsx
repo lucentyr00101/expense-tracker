@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { getToday, getLedger } from "@/lib/session";
 import { dailyTotals, getSettings, listCategories, listTransactions } from "@/lib/data";
+import { getHousehold, listUsers } from "@/lib/household";
 import { addDays, formatDate, isIsoDate, startOf } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { AddTransactionButton } from "@/components/add-transaction-button";
@@ -33,6 +34,14 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
     dailyTotals(ledger.ledgerId, weekStart, addDays(weekStart, 6)),
   ]);
   const { currency } = settings;
+  const canEdit = ledger.role !== "viewer";
+  let authors: Awaited<ReturnType<typeof listUsers>> | undefined;
+  if (ledger.householdId) {
+    const household = await getHousehold(ledger.householdId);
+    if (household && household.members.length > 1) {
+      authors = await listUsers([...new Set(transactions.map((t) => t.createdBy))]);
+    }
+  }
   const spent = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   const earned = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const weekMax = Math.max(1, ...week.map((d) => d.expense));
@@ -42,7 +51,7 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
       <PageHeader
         title="Daily log"
         description={formatDate(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-        actions={<AddTransactionButton categories={categories} currency={currency} date={date} />}
+        actions={<AddTransactionButton categories={categories} currency={currency} date={date} canEdit={canEdit} />}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -102,7 +111,7 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
 
       <Card title="Transactions">
         {transactions.length ? (
-          <TransactionList transactions={transactions} categories={categories} currency={currency} />
+          <TransactionList transactions={transactions} categories={categories} currency={currency} canEdit={canEdit} authors={authors} />
         ) : (
           <EmptyState icon={<Receipt className="size-8" aria-hidden />} title="Nothing logged for this day">
             Use <strong className="text-fg">Add transaction</strong> to record an expense or income.

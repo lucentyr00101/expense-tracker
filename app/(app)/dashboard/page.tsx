@@ -51,7 +51,7 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
       <PageHeader
         title={`Hi, ${ledger.user.name.split(" ")[0]}`}
         description="Here's how your money moved."
-        actions={<AddTransactionButton categories={categories} currency={currency} date={today} />}
+        actions={<AddTransactionButton categories={categories} currency={currency} date={today} canEdit={ledger.role !== "viewer"} />}
       />
 
       {/* Keyed so its local selection resets to the range actually shown; the page stays mounted across navigations. */}

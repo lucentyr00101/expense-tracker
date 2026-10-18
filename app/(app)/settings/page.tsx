@@ -40,7 +40,7 @@ async function CurrencyCard() {
   const { currency } = await getSettings(ledger.ledgerId);
   return (
     <Card title="Currency">
-      <CurrencyForm currency={currency} />
+      <CurrencyForm currency={currency} canEdit={ledger.role !== "viewer"} />
     </Card>
   );
 }

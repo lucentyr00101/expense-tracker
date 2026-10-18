@@ -34,6 +34,7 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
     getBudgetStatus(ledger.ledgerId, month, endOf(month, "month")),
     getSettings(ledger.ledgerId),
   ]);
+  const canEdit = ledger.role !== "viewer";
   const withBudget = rows.filter((r) => r.budget !== null);
   const totalBudget = withBudget.reduce((s, r) => s + r.budget!, 0);
   const totalSpent = withBudget.reduce((s, r) => s + r.spent, 0);
@@ -81,7 +82,7 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
                   )}
                 </div>
               </div>
-              <BudgetForm key={`${r.categoryId}-${r.budget}`} categoryId={r.categoryId} name={r.name} budget={r.budget} currency={currency} />
+              <BudgetForm key={`${r.categoryId}-${r.budget}`} categoryId={r.categoryId} name={r.name} budget={r.budget} currency={currency} canEdit={canEdit} />
             </li>
           ))}
         </ul>
