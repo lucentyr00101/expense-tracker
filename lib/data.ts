@@ -58,15 +58,19 @@ export function ensureSetup(): Promise<void> {
     };
     // Drop the old indexes first: a unique {userId, categoryId} index would see a renamed budget as
     // (null, categoryId) and reject the next one.
-    for (const [collection, name] of [
-      [legacy.categories, "userId_1_type_1"],
-      [legacy.transactions, "userId_1_date_-1"],
-      [legacy.budgets, "userId_1_categoryId_1"],
-    ] as const) {
-      await collection.dropIndex(name).catch((error) => {
-        if (error?.codeName !== "IndexNotFound" && error?.codeName !== "NamespaceNotFound") throw error;
-      });
-    }
+    await Promise.all(
+      (
+        [
+          [legacy.categories, "userId_1_type_1"],
+          [legacy.transactions, "userId_1_date_-1"],
+          [legacy.budgets, "userId_1_categoryId_1"],
+        ] as const
+      ).map(([collection, name]) =>
+        collection.dropIndex(name).catch((error) => {
+          if (error?.codeName !== "IndexNotFound" && error?.codeName !== "NamespaceNotFound") throw error;
+        }),
+      ),
+    );
 
     // Categories and transactions have no unique index that a rename could break (`key` is untouched).
     for (const collection of [legacy.categories, legacy.transactions]) {
@@ -117,29 +121,41 @@ export function ensureSetup(): Promise<void> {
       budgets.createIndex({ ledgerId: 1, categoryId: 1 }, { unique: true }),
     ]);
 
+    // Batched: this runs on every cold start, and each round trip to the database counts.
     const now = new Date();
-    for (const type of ["expense", "income"] as const) {
-      for (const def of SYSTEM_CATEGORIES[type]) {
-        const parent = await categories.findOneAndUpdate(
-          { key: def.key },
-          {
+    const defs = (["expense", "income"] as const).flatMap((type) => SYSTEM_CATEGORIES[type].map((def) => ({ type, def })));
+    await categories.bulkWrite(
+      defs.map(({ type, def }) => ({
+        updateOne: {
+          filter: { key: def.key },
+          update: {
             $set: { name: def.name, icon: def.icon, color: def.color },
             $setOnInsert: { ledgerId: null, type, parentId: null, archivedAt: null, createdAt: now },
           },
-          { upsert: true, returnDocument: "after" },
-        );
-        for (const child of def.children ?? []) {
-          await categories.updateOne(
-            { key: `${def.key}/${child}` },
-            {
+          upsert: true,
+        },
+      })),
+      { ordered: false },
+    );
+    const parents = await categories
+      .find({ key: { $in: defs.map(({ def }) => def.key) } }, { projection: { key: 1 } })
+      .toArray();
+    const parentIds = new Map(parents.map((p) => [p.key, p._id]));
+    await categories.bulkWrite(
+      defs.flatMap(({ type, def }) =>
+        (def.children ?? []).map((child) => ({
+          updateOne: {
+            filter: { key: `${def.key}/${child}` },
+            update: {
               $set: { name: child, icon: def.icon, color: def.color },
-              $setOnInsert: { ledgerId: null, type, parentId: parent!._id, archivedAt: null, createdAt: now },
+              $setOnInsert: { ledgerId: null, type, parentId: parentIds.get(def.key)!, archivedAt: null, createdAt: now },
             },
-            { upsert: true },
-          );
-        }
-      }
-    }
+            upsert: true,
+          },
+        })),
+      ),
+      { ordered: false },
+    );
   })().catch((error) => {
     setup = null;
     throw error;
