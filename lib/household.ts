@@ -1,6 +1,6 @@
 import "server-only";
 import { MongoServerError, ObjectId, type ClientSession } from "mongodb";
-import { client, db } from "./db";
+import { client, connectDb, db } from "./db";
 import { countLedgerData, deleteLedgerData, ensureSetup, getSettings, mergeLedgerInto } from "./data";
 
 export type Role = "owner" | "editor" | "viewer";
@@ -57,6 +57,7 @@ function ensureHouseholdSetup(): Promise<void> {
 
 /** The ledger a user works in: their household's, a pinned one, or their own. */
 export async function resolveLedger(userId: string): Promise<LedgerContext> {
+  await connectDb(); // every page and action passes through here, so a failed connect heals on the next request
   await ensureHouseholdSetup();
   const household = await households.findOne({ "members.userId": userId });
   if (household) {
