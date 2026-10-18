@@ -68,13 +68,15 @@ export function ensureSetup(): Promise<void> {
       });
     }
 
-    await legacy.transactions.updateMany({ userId: { $exists: true }, createdBy: { $exists: false } }, [
-      { $set: { createdBy: "$userId" } },
-    ]);
     // Categories and transactions have no unique index that a rename could break (`key` is untouched).
     for (const collection of [legacy.categories, legacy.transactions]) {
       await collection.updateMany({ userId: { $exists: true } }, { $rename: { userId: "ledgerId" } });
     }
+    // After the rename, so a transaction written between the steps (by either code version) still gets
+    // an author. Before households every ledger had one person, so the ledger id is the author.
+    await legacy.transactions.updateMany({ createdBy: { $exists: false } }, [
+      { $set: { createdBy: { $ifNull: ["$ledgerId", "$userId"] } } },
+    ]);
     // Old code still running during the deploy (or after a rollback) can write a legacy budget for a
     // category its ledger already budgets. The migrated row wins and the legacy one is dropped.
     for (const doc of await legacy.budgets.find({ userId: { $exists: true } }).toArray()) {
