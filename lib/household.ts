@@ -195,7 +195,16 @@ export async function cancelInvite(ctx: LedgerContext, inviteId: string): Promis
   if (typeof inviteId !== "string") return;
   const _id = toObjectId(inviteId);
   if (ctx.role !== "owner" || !ctx.householdId || !_id) return;
-  await invites.deleteOne({ _id, householdId: new ObjectId(ctx.householdId) });
+  const householdId = new ObjectId(ctx.householdId);
+  await inTransaction(async (session) => {
+    const { deletedCount } = await invites.deleteOne({ _id, householdId }, { session });
+    if (!deletedCount) return;
+    // An owner left with nobody and no pending invites turns back into a solo user, as on leaving alone.
+    const household = await households.findOne({ _id: householdId, ownerId: ctx.userId }, { session });
+    if (!household || household.members.length > 1) return;
+    if (await invites.countDocuments({ householdId }, { session })) return;
+    await dissolve(household, session);
+  });
 }
 
 export async function declineInvite(email: string, inviteId: string): Promise<void> {
@@ -268,11 +277,14 @@ async function dropMember(householdId: ObjectId, memberId: string, session: Clie
     { upsert: true, session },
   );
   const rest = await households.findOne({ _id: householdId }, { session });
-  if (rest && rest.members.length <= 1) {
-    await households.deleteOne({ _id: householdId }, { session });
-    await invites.deleteMany({ householdId }, { session });
-    if (rest.members[0]) await keepLedger(rest.members[0].userId, rest.ledgerId, session);
-  }
+  if (rest && rest.members.length <= 1) await dissolve(rest, session);
+}
+
+/** Delete a household of one (or none) and its invites. The member left keeps the household's ledger. */
+async function dissolve(household: HouseholdDoc, session: ClientSession) {
+  await households.deleteOne({ _id: household._id }, { session });
+  await invites.deleteMany({ householdId: household._id }, { session });
+  if (household.members[0]) await keepLedger(household.members[0].userId, household.ledgerId, session);
 }
 
 /** Keep a user on a ledger once no household points them to it: pin it unless it's their own. */
@@ -319,9 +331,7 @@ export async function leaveHousehold(ctx: LedgerContext): Promise<string | null>
     }
     if (household.members.length > 1) return "Transfer ownership or remove everyone before leaving.";
     // An owner on their own turns back into a solo user and keeps the ledger.
-    await households.deleteOne({ _id: householdId }, { session });
-    await invites.deleteMany({ householdId }, { session });
-    await keepLedger(ctx.userId, household.ledgerId, session);
+    await dissolve(household, session);
     return null;
   });
 }
