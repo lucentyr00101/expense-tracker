@@ -1,5 +1,6 @@
 import { CalendarDays, ChartColumn, FolderTree, Target } from "lucide-react";
 import { GoogleSignIn } from "@/components/google-sign-in";
+import { LegalLinks } from "@/components/legal-links";
 import { Logo } from "@/components/logo";
 
 const FEATURES = [
@@ -44,6 +45,7 @@ export default function Landing() {
           ))}
         </ul>
       </section>
+      <LegalLinks />
     </main>
   );
 }
