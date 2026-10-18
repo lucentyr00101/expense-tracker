@@ -71,8 +71,34 @@ export function ensureSetup(): Promise<void> {
     await legacy.transactions.updateMany({ userId: { $exists: true }, createdBy: { $exists: false } }, [
       { $set: { createdBy: "$userId" } },
     ]);
-    for (const collection of Object.values(legacy)) {
+    // Categories and transactions have no unique index that a rename could break (`key` is untouched).
+    for (const collection of [legacy.categories, legacy.transactions]) {
       await collection.updateMany({ userId: { $exists: true } }, { $rename: { userId: "ledgerId" } });
+    }
+    // Old code still running during the deploy (or after a rollback) can write a legacy budget for a
+    // category its ledger already budgets. The migrated row wins and the legacy one is dropped.
+    for (const doc of await legacy.budgets.find({ userId: { $exists: true } }).toArray()) {
+      const migrated = await legacy.budgets.findOne({ ledgerId: doc.userId, categoryId: doc.categoryId });
+      if (migrated) {
+        await legacy.budgets.deleteOne({ _id: doc._id });
+        continue;
+      }
+      await legacy.budgets.updateOne({ _id: doc._id }, { $rename: { userId: "ledgerId" } }).catch(async (error) => {
+        if (error?.code !== 11000) throw error;
+        await legacy.budgets.deleteOne({ _id: doc._id }); // another process migrated a twin first
+      });
+    }
+    // Before the unique index exists, concurrent cold starts could still leave twins: keep the oldest.
+    const twins = await legacy.budgets
+      .aggregate<{ ids: ObjectId[] }>([
+        { $match: { ledgerId: { $type: "string" } } },
+        { $group: { _id: { ledgerId: "$ledgerId", categoryId: "$categoryId" }, ids: { $push: "$_id" }, n: { $sum: 1 } } },
+        { $match: { n: { $gt: 1 } } },
+      ])
+      .toArray();
+    for (const { ids } of twins) {
+      const [, ...extra] = ids.toSorted((a, b) => a.toHexString().localeCompare(b.toHexString()));
+      await legacy.budgets.deleteMany({ _id: { $in: extra } });
     }
 
     await Promise.all([
