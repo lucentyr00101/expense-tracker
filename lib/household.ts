@@ -141,6 +141,7 @@ async function findInvite(email: string, inviteId: string, session?: ClientSessi
 }
 
 export async function getAcceptPreview(ctx: LedgerContext, email: string, inviteId: string): Promise<AcceptPreview | null> {
+  if (typeof inviteId !== "string") return null;
   const invite = await findInvite(email, inviteId);
   const household = invite && (await households.findOne({ _id: invite.householdId }));
   if (!household) return null;
@@ -191,12 +192,14 @@ export async function createInvite(ctx: LedgerContext, email: string, role: Invi
 }
 
 export async function cancelInvite(ctx: LedgerContext, inviteId: string): Promise<void> {
+  if (typeof inviteId !== "string") return;
   const _id = toObjectId(inviteId);
   if (ctx.role !== "owner" || !ctx.householdId || !_id) return;
   await invites.deleteOne({ _id, householdId: new ObjectId(ctx.householdId) });
 }
 
 export async function declineInvite(email: string, inviteId: string): Promise<void> {
+  if (typeof inviteId !== "string") return;
   const _id = toObjectId(inviteId);
   if (!_id) return;
   await invites.deleteOne({ _id, email: normalizeEmail(email) });
@@ -209,6 +212,7 @@ export async function acceptInvite(
   inviteId: string,
   mode: "merge" | "replace",
 ): Promise<string | null> {
+  if (typeof inviteId !== "string") return "This invite is no longer available.";
   await ensureHouseholdSetup();
   return inTransaction(async (session) => {
     const invite = await findInvite(email, inviteId, session);
@@ -245,6 +249,7 @@ function ownedBy(ctx: LedgerContext) {
 }
 
 export async function setMemberRole(ctx: LedgerContext, memberId: string, role: InviteRole): Promise<string | null> {
+  if (typeof memberId !== "string") return NOT_A_MEMBER;
   const filter = ownedBy(ctx);
   if (!filter) return OWNER_ONLY;
   const result = await households.updateOne(
@@ -277,6 +282,7 @@ async function keepLedger(userId: string, ledgerId: string, session: ClientSessi
 }
 
 export async function removeMember(ctx: LedgerContext, memberId: string): Promise<string | null> {
+  if (typeof memberId !== "string") return NOT_A_MEMBER;
   const filter = ownedBy(ctx);
   if (!filter) return OWNER_ONLY;
   if (memberId === ctx.userId) return NOT_A_MEMBER;
@@ -289,6 +295,7 @@ export async function removeMember(ctx: LedgerContext, memberId: string): Promis
 }
 
 export async function transferOwnership(ctx: LedgerContext, memberId: string): Promise<string | null> {
+  if (typeof memberId !== "string") return NOT_A_MEMBER;
   const filter = ownedBy(ctx);
   if (!filter) return OWNER_ONLY;
   if (memberId === ctx.userId) return NOT_A_MEMBER;

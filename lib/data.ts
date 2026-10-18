@@ -178,12 +178,12 @@ export async function listCategories(
 }
 
 async function findUsableCategory(ledgerId: string, id: string) {
-  if (!ObjectId.isValid(id)) return null;
+  if (typeof id !== "string" || !ObjectId.isValid(id)) return null;
   return categories.findOne({ _id: new ObjectId(id), ...visibleTo(ledgerId), archivedAt: null });
 }
 
 async function findOwnCategory(ledgerId: string, id: string) {
-  if (!ObjectId.isValid(id)) return null;
+  if (typeof id !== "string" || !ObjectId.isValid(id)) return null;
   return categories.findOne({ _id: new ObjectId(id), ledgerId });
 }
 
@@ -307,7 +307,7 @@ export async function createTransaction(
 }
 
 export async function updateTransaction(ledgerId: string, id: string, input: TransactionInput): Promise<string | null> {
-  if (!ObjectId.isValid(id)) return "Transaction not found.";
+  if (typeof id !== "string" || !ObjectId.isValid(id)) return "Transaction not found.";
   const resolved = await resolveCategory(ledgerId, input.type, input.categoryId);
   if (!resolved) return "Pick a valid category.";
   const result = await transactions.updateOne(
@@ -327,7 +327,7 @@ export async function updateTransaction(ledgerId: string, id: string, input: Tra
 }
 
 export async function deleteTransaction(ledgerId: string, id: string): Promise<void> {
-  if (!ObjectId.isValid(id)) return;
+  if (typeof id !== "string" || !ObjectId.isValid(id)) return;
   await transactions.deleteOne({ _id: new ObjectId(id), ledgerId });
 }
 

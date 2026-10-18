@@ -38,6 +38,11 @@ async function ownerContext(): Promise<LedgerContext | ActionState> {
 
 const isFailure = (ctx: LedgerContext | ActionState): ctx is ActionState => "ok" in ctx;
 
+/** Ids passed straight to an action are client-controlled: only a 24-char hex string gets through. */
+const idSchema = z.string().regex(/^[0-9a-f]{24}$/);
+const isId = (value: unknown): value is string => idSchema.safeParse(value).success;
+const BAD_ID = "Something went wrong. Refresh and try again.";
+
 const amount = z.string().transform((v, ctx) => {
   const cents = parseAmount(v);
   if (cents === null) {
@@ -86,6 +91,7 @@ export async function saveTransaction(_: ActionState, formData: FormData): Promi
 }
 
 export async function removeTransaction(id: string): Promise<ActionState> {
+  if (!isId(id)) return fail(BAD_ID);
   const ctx = await editorContext();
   if (isFailure(ctx)) return ctx;
   await data.deleteTransaction(ctx.ledgerId, id);
@@ -117,6 +123,7 @@ export async function saveCategory(_: ActionState, formData: FormData): Promise<
 }
 
 export async function removeCategory(id: string): Promise<ActionState> {
+  if (!isId(id)) return fail(BAD_ID);
   const ctx = await editorContext();
   if (isFailure(ctx)) return ctx;
   const error = await data.archiveCategory(ctx.ledgerId, id);
@@ -169,6 +176,7 @@ export async function sendInvite(_: ActionState, formData: FormData): Promise<Ac
 }
 
 export async function cancelInviteAction(inviteId: string): Promise<ActionState> {
+  if (!isId(inviteId)) return fail(BAD_ID);
   const ctx = await ownerContext();
   if (isFailure(ctx)) return ctx;
   await household.cancelInvite(ctx, inviteId);
@@ -176,6 +184,7 @@ export async function cancelInviteAction(inviteId: string): Promise<ActionState>
 }
 
 export async function changeMemberRole(memberId: string, role: "editor" | "viewer"): Promise<ActionState> {
+  if (!isId(memberId)) return fail(BAD_ID);
   const ctx = await ownerContext();
   if (isFailure(ctx)) return ctx;
   const parsed = roleSchema.safeParse(role);
@@ -185,6 +194,7 @@ export async function changeMemberRole(memberId: string, role: "editor" | "viewe
 }
 
 export async function removeMemberAction(memberId: string): Promise<ActionState> {
+  if (!isId(memberId)) return fail(BAD_ID);
   const ctx = await ownerContext();
   if (isFailure(ctx)) return ctx;
   const error = await household.removeMember(ctx, memberId);
@@ -192,6 +202,7 @@ export async function removeMemberAction(memberId: string): Promise<ActionState>
 }
 
 export async function transferOwnershipAction(memberId: string): Promise<ActionState> {
+  if (!isId(memberId)) return fail(BAD_ID);
   const ctx = await ownerContext();
   if (isFailure(ctx)) return ctx;
   const error = await household.transferOwnership(ctx, memberId);
@@ -209,6 +220,7 @@ export async function respondToInvite(
   inviteId: string,
   response: "merge" | "replace" | "decline",
 ): Promise<ActionState> {
+  if (!isId(inviteId)) return fail(BAD_ID);
   const parsed = responseSchema.safeParse(response);
   if (!parsed.success) return fail("Choose what to do with this invitation.");
   const session = await auth.api.getSession({ headers: await headers() });
