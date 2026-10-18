@@ -52,7 +52,7 @@ If the dev server keeps serving old CSS after `app/globals.css` changes, the Tur
 - `settings`: `_id` is the ledgerId; holds `currency` (display only, no conversion).
 - `households`: `{ ledgerId, ownerId, members: [{ userId, role, joinedAt }] }`. One household per user (unique index on `members.userId`). Its ledger id is the owner's ledger at first invite. An owner alone in their household who leaves dissolves it and keeps the ledger.
 - `invites`: `{ householdId, email, role, invitedBy }`, for registered emails only. Accepting offers merge (move the invitee's data into the household) or replace (delete it). A member who leaves or is removed gets a fresh empty ledger.
-- `userLedgers`: `_id` is the userId; pins a user to a ledger other than their own id: the fresh one for a departed member, or the household ledger for a remaining owner after a transfer.
+- `userLedgers`: `_id` is the userId; pins a user to a ledger other than their own id: the fresh one for a departed member, or the household ledger for a remaining owner whose ledger isn't their own id.
 - Better Auth owns `user`, `session`, `account` and `verification`.
 
 **Dates and ranges (`lib/dates.ts`, shared client/server):** calendar dates are `YYYY-MM-DD` strings, and all math is in UTC so the server's timezone never matters. `resolveRange()` turns dashboard URL params (`preset` = today|week|month|year|last|custom, `n`, `unit`, `offset`, `from`, `to`, `group`) into a concrete range and bar size, widening the grouping when it would produce more than 400 bars. Weeks start Monday. Aggregation buckets come from Mongo `$dateTrunc` with `timezone: "UTC"`, `startOfWeek: "monday"`, and empty buckets are filled by `buckets()`.
