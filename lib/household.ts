@@ -266,12 +266,14 @@ async function dropMember(householdId: ObjectId, memberId: string, session: Clie
   if (rest && rest.members.length <= 1) {
     await households.deleteOne({ _id: householdId }, { session });
     await invites.deleteMany({ householdId }, { session });
-    // An owner who took over someone else's ledger keeps it by pinning it.
-    const owner = rest.members[0];
-    if (owner && owner.userId !== rest.ledgerId) {
-      await userLedgers.updateOne({ _id: owner.userId }, { $set: { ledgerId: rest.ledgerId } }, { upsert: true, session });
-    }
+    if (rest.members[0]) await keepLedger(rest.members[0].userId, rest.ledgerId, session);
   }
+}
+
+/** Keep a user on a ledger once no household points them to it: pin it unless it's their own. */
+async function keepLedger(userId: string, ledgerId: string, session: ClientSession) {
+  if (ledgerId === userId) await userLedgers.deleteOne({ _id: userId }, { session });
+  else await userLedgers.updateOne({ _id: userId }, { $set: { ledgerId } }, { upsert: true, session });
 }
 
 export async function removeMember(ctx: LedgerContext, memberId: string): Promise<string | null> {
@@ -304,10 +306,15 @@ export async function leaveHousehold(ctx: LedgerContext): Promise<string | null>
   return inTransaction(async (session) => {
     const household = await households.findOne({ _id: householdId, "members.userId": ctx.userId }, { session });
     if (!household) return "You're not in a household.";
-    if (household.ownerId === ctx.userId && household.members.length > 1) {
-      return "Transfer ownership or remove everyone before leaving.";
+    if (household.ownerId !== ctx.userId) {
+      await dropMember(householdId, ctx.userId, session);
+      return null;
     }
-    await dropMember(householdId, ctx.userId, session);
+    if (household.members.length > 1) return "Transfer ownership or remove everyone before leaving.";
+    // An owner on their own turns back into a solo user and keeps the ledger.
+    await households.deleteOne({ _id: householdId }, { session });
+    await invites.deleteMany({ householdId }, { session });
+    await keepLedger(ctx.userId, household.ledgerId, session);
     return null;
   });
 }
