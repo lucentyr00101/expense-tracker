@@ -1,8 +1,11 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
 import { getLedgerContext } from "@/lib/session";
+import * as household from "@/lib/household";
 import type { LedgerContext } from "@/lib/household";
 import * as data from "@/lib/data";
 import { CATEGORY_COLORS, ICON_KEYS } from "@/lib/category-defs";
@@ -145,4 +148,76 @@ export async function saveSettings(_: ActionState, formData: FormData): Promise<
   if (!isCurrency(currency)) return fail("Pick a supported currency.");
   await data.updateSettings(ctx.ledgerId, { currency });
   return done();
+}
+
+// ---------- Household ----------
+
+const inviteSchema = z.object({
+  email: z.string().trim().pipe(z.email("Enter a valid email address.")),
+  role: z.enum(["editor", "viewer"]),
+});
+const roleSchema = z.enum(["editor", "viewer"]);
+const responseSchema = z.enum(["merge", "replace", "decline"]);
+
+export async function sendInvite(_: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await ownerContext();
+  if (isFailure(ctx)) return ctx;
+  const parsed = inviteSchema.safeParse(fields(formData));
+  if (!parsed.success) return fail(firstError(parsed.error));
+  const error = await household.createInvite(ctx, parsed.data.email, parsed.data.role);
+  return error ? fail(error) : done();
+}
+
+export async function cancelInviteAction(inviteId: string): Promise<ActionState> {
+  const ctx = await ownerContext();
+  if (isFailure(ctx)) return ctx;
+  await household.cancelInvite(ctx, inviteId);
+  return done();
+}
+
+export async function changeMemberRole(memberId: string, role: "editor" | "viewer"): Promise<ActionState> {
+  const ctx = await ownerContext();
+  if (isFailure(ctx)) return ctx;
+  const parsed = roleSchema.safeParse(role);
+  if (!parsed.success) return fail("Pick a valid role.");
+  const error = await household.setMemberRole(ctx, memberId, parsed.data);
+  return error ? fail(error) : done();
+}
+
+export async function removeMemberAction(memberId: string): Promise<ActionState> {
+  const ctx = await ownerContext();
+  if (isFailure(ctx)) return ctx;
+  const error = await household.removeMember(ctx, memberId);
+  return error ? fail(error) : done();
+}
+
+export async function transferOwnershipAction(memberId: string): Promise<ActionState> {
+  const ctx = await ownerContext();
+  if (isFailure(ctx)) return ctx;
+  const error = await household.transferOwnership(ctx, memberId);
+  return error ? fail(error) : done();
+}
+
+export async function leaveHouseholdAction(): Promise<ActionState> {
+  const ctx = await getLedgerContext();
+  if (!ctx) return fail("Your session expired. Sign in again.");
+  const error = await household.leaveHousehold(ctx);
+  return error ? fail(error) : done();
+}
+
+export async function respondToInvite(
+  inviteId: string,
+  response: "merge" | "replace" | "decline",
+): Promise<ActionState> {
+  const parsed = responseSchema.safeParse(response);
+  if (!parsed.success) return fail("Choose what to do with this invitation.");
+  const session = await auth.api.getSession({ headers: await headers() });
+  const ctx = session ? await getLedgerContext() : null;
+  if (!session || !ctx) return fail("Your session expired. Sign in again.");
+  if (parsed.data === "decline") {
+    await household.declineInvite(session.user.email, inviteId);
+    return done();
+  }
+  const error = await household.acceptInvite(ctx, session.user.email, inviteId, parsed.data);
+  return error ? fail(error) : done();
 }
