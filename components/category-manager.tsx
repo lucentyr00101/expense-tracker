@@ -14,7 +14,7 @@ type Dialog =
   | { kind: "edit"; category: Category }
   | { kind: "archive"; category: Category };
 
-export function CategoryManager({ categories }: { categories: CategoryNode[] }) {
+export function CategoryManager({ categories, canEdit }: { categories: CategoryNode[]; canEdit: boolean }) {
   const [type, setType] = useState<TxType>("expense");
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const close = useCallback(() => setDialog(null), []);
@@ -49,10 +49,12 @@ export function CategoryManager({ categories }: { categories: CategoryNode[] }) 
             </button>
           ))}
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: "create", type, parent: null })}>
-          <Plus className="size-5" aria-hidden />
-          New category
-        </button>
+        {canEdit && (
+          <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: "create", type, parent: null })}>
+            <Plus className="size-5" aria-hidden />
+            New category
+          </button>
+        )}
       </div>
 
       <ul className="grid gap-4 md:grid-cols-2">
@@ -66,7 +68,7 @@ export function CategoryManager({ categories }: { categories: CategoryNode[] }) 
                   {c.isSystem ? "Built-in" : "Custom"} · {c.children.length} subcategor{c.children.length === 1 ? "y" : "ies"}
                 </p>
               </div>
-              {!c.isSystem && <OwnActions category={c} onDialog={setDialog} />}
+              {canEdit && !c.isSystem && <OwnActions category={c} onDialog={setDialog} />}
             </div>
 
             <ul className="mt-3 flex flex-wrap gap-1.5">
@@ -76,9 +78,10 @@ export function CategoryManager({ categories }: { categories: CategoryNode[] }) 
                   className={`flex items-center rounded-full border border-line text-sm ${s.isSystem ? "px-3 py-1.5 text-muted" : "py-0.5 pr-0.5 pl-3"}`}
                 >
                   {s.name}
-                  {!s.isSystem && <OwnActions category={s} onDialog={setDialog} compact />}
+                  {canEdit && !s.isSystem && <OwnActions category={s} onDialog={setDialog} compact />}
                 </li>
               ))}
+              {canEdit && (
               <li>
                 <button
                   type="button"
@@ -89,6 +92,7 @@ export function CategoryManager({ categories }: { categories: CategoryNode[] }) 
                   Subcategory
                 </button>
               </li>
+              )}
             </ul>
           </li>
         ))}

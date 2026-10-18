@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Target } from "lucide-react";
-import { getToday, getUser } from "@/lib/session";
+import { getToday, getLedger } from "@/lib/session";
 import { getBudgetStatus, getSettings, getSummary, listCategories } from "@/lib/data";
 import { endOf, resolveRange, startOf, type RangeParams } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -29,15 +29,15 @@ function first(value: string | string[] | undefined) {
 }
 
 async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard">["searchParams"] }) {
-  const [user, today, raw] = await Promise.all([getUser(), getToday(), searchParams]);
+  const [ledger, today, raw] = await Promise.all([getLedger(), getToday(), searchParams]);
   const params: RangeParams = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, first(v)]));
   const range = resolveRange(params, today);
 
   const [summary, settings, categories, budgets] = await Promise.all([
-    getSummary(user.id, range),
-    getSettings(user.id),
-    listCategories(user.id),
-    getBudgetStatus(user.id, startOf(today, "month"), endOf(today, "month")),
+    getSummary(ledger.ledgerId, range),
+    getSettings(ledger.ledgerId),
+    listCategories(ledger.ledgerId),
+    getBudgetStatus(ledger.ledgerId, startOf(today, "month"), endOf(today, "month")),
   ]);
   const { currency } = settings;
   const net = summary.income - summary.expense;
@@ -49,9 +49,9 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={`Hi, ${user.name.split(" ")[0]}`}
+        title={`Hi, ${ledger.user.name.split(" ")[0]}`}
         description="Here's how your money moved."
-        actions={<AddTransactionButton categories={categories} currency={currency} date={today} />}
+        actions={<AddTransactionButton categories={categories} currency={currency} date={today} canEdit={ledger.role !== "viewer"} />}
       />
 
       {/* Keyed so its local selection resets to the range actually shown; the page stays mounted across navigations. */}

@@ -6,13 +6,15 @@ import type { CategoryNode } from "@/lib/data";
 import { Modal } from "./modal";
 import { TransactionForm } from "./transaction-form";
 
-export function AddTransactionButton({ categories, currency, date }: {
+export function AddTransactionButton({ categories, currency, date, canEdit }: {
   categories: CategoryNode[];
   currency: string;
   date: string;
+  canEdit: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
+  if (!canEdit) return null;
   return (
     <>
       <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>

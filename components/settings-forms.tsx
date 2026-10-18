@@ -6,7 +6,7 @@ import { saveSettings, type ActionState } from "@/app/actions";
 import { CURRENCIES } from "@/lib/money";
 import { FormError } from "./ui";
 
-export function CurrencyForm({ currency }: { currency: string }) {
+export function CurrencyForm({ currency, canEdit }: { currency: string; canEdit: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveSettings, { ok: false });
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -15,14 +15,14 @@ export function CurrencyForm({ currency }: { currency: string }) {
           Display currency
         </label>
         <div className="flex flex-wrap gap-2">
-          <select id="currency" name="currency" defaultValue={currency} className="field max-w-xs cursor-pointer">
+          <select id="currency" name="currency" defaultValue={currency} disabled={!canEdit} className="field max-w-xs cursor-pointer">
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.code} — {c.name}
               </option>
             ))}
           </select>
-          <button type="submit" disabled={pending} className="btn btn-primary">
+          <button type="submit" disabled={pending || !canEdit} className="btn btn-primary">
             {pending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
             Save
           </button>
