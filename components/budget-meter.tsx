@@ -29,11 +29,13 @@ export function BudgetMeter({ spent, budget, currency }: { spent: number; budget
           <status.Icon className="size-3.5" aria-hidden />
           {status.label}
         </span>
-        <span className="tabular text-muted">
-          {formatMoney(spent, currency)} / {formatMoney(budget, currency)} ·{" "}
+        <span className="tabular font-medium text-fg">
           {left >= 0 ? `${formatMoney(left, currency)} left` : `${formatMoney(-left, currency)} over`}
         </span>
       </div>
+      <p className="tabular mt-0.5 text-xs text-muted">
+        {formatMoney(spent, currency)} of {formatMoney(budget, currency)}
+      </p>
     </div>
   );
 }

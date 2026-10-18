@@ -20,7 +20,7 @@ export function Card({ title, description, actions, children, className = "" }: 
   className?: string;
 }) {
   return (
-    <section className={`glass rounded-2xl p-4 sm:p-5 ${className}`}>
+    <section className={`glass min-w-0 rounded-2xl p-4 sm:p-5 ${className}`}>
       {(title || actions) && (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>

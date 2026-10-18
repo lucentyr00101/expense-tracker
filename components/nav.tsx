@@ -50,7 +50,7 @@ export function SideNav() {
             }`}
           >
             <Icon className={`size-5 ${active ? "text-primary" : ""}`} aria-hidden />
-            {label}
+            <span className="max-w-full truncate">{label}</span>
           </Link>
         );
       })}
@@ -73,12 +73,12 @@ export function BottomNav() {
             key={href}
             href={to}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${
+            className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 text-[0.6875rem] font-medium min-[360px]:text-xs focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${
               active ? "text-fg" : "text-subtle"
             }`}
           >
             <Icon className={`size-5 ${active ? "text-primary" : ""}`} aria-hidden />
-            {label}
+            <span className="max-w-full truncate">{label}</span>
           </Link>
         );
       })}

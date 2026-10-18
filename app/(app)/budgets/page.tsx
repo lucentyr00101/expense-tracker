@@ -44,16 +44,16 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2">
-        <Link href={`/budgets?month=${prev}`} className="icon-btn border border-line-strong" aria-label="Previous month">
+        <Link href={`/budgets?month=${prev}`} className="icon-btn shrink-0 border border-line-strong" aria-label="Previous month">
           <ChevronLeft className="size-5" aria-hidden />
         </Link>
-        <p className="min-w-36 text-center font-semibold">{formatDate(month, { month: "long", year: "numeric" })}</p>
+        <p className="flex-1 text-center font-semibold sm:min-w-36 sm:flex-none">{formatDate(month, { month: "long", year: "numeric" })}</p>
         <Link
           href={`/budgets?month=${next.slice(0, 7)}`}
           aria-label="Next month"
           aria-disabled={next > thisMonth}
           tabIndex={next > thisMonth ? -1 : undefined}
-          className={`icon-btn border border-line-strong ${next > thisMonth ? "pointer-events-none opacity-40" : ""}`}
+          className={`icon-btn shrink-0 border border-line-strong ${next > thisMonth ? "pointer-events-none opacity-40" : ""}`}
         >
           <ChevronRight className="size-5" aria-hidden />
         </Link>

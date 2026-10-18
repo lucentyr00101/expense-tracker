@@ -74,7 +74,7 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
       </dl>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <Card title="Cash flow" description={`Per ${range.group}`} className="lg:col-span-3">
+        <Card className="lg:col-span-3">
           <CashFlowChart
             data={summary.series}
             expense={summary.expenseByCategory}
@@ -120,12 +120,14 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
 
 function Kpi({ label, value, hint, dot, className = "" }: { label: string; value: string; hint?: string; dot?: string; className?: string }) {
   return (
-    <div className="glass rounded-2xl p-4">
-      <dt className="flex items-center gap-2 text-sm text-muted">
-        {dot && <span aria-hidden className="size-2.5 rounded-sm" style={{ backgroundColor: dot }} />}
+    <div className="glass min-w-0 rounded-2xl p-3 sm:p-4">
+      <dt className="flex items-center gap-2 text-xs text-muted min-[360px]:text-sm">
+        {dot && <span aria-hidden className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: dot }} />}
         {label}
       </dt>
-      <dd className={`mt-1 truncate text-xl font-bold tracking-tight sm:text-2xl ${className}`}>{value}</dd>
+      <dd title={value} className={`tabular mt-1 truncate text-base font-bold tracking-tight min-[360px]:text-lg sm:text-2xl ${className}`}>
+        {value}
+      </dd>
       {hint && <dd className="mt-0.5 text-xs text-subtle">{hint}</dd>}
     </div>
   );

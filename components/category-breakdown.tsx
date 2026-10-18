@@ -70,12 +70,13 @@ export function CategoryBreakdown({ expense, income, currency }: {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2 text-sm">
                     <span className="truncate font-medium">{r.name}</span>
-                    <span className="tabular shrink-0">
-                      {formatMoney(r.amount, currency)} <span className="text-subtle">· {pct}%</span>
-                    </span>
+                    <span className="tabular shrink-0">{formatMoney(r.amount, currency)}</span>
                   </span>
-                  <span aria-hidden className="mt-1.5 block h-2 overflow-hidden rounded-full bg-sunken">
-                    <span className="block h-full rounded-full" style={{ width: `${(r.amount / max) * 100}%`, backgroundColor: bar }} />
+                  <span className="mt-1.5 flex items-center gap-2">
+                    <span aria-hidden className="block h-2 flex-1 overflow-hidden rounded-full bg-sunken">
+                      <span className="block h-full rounded-full" style={{ width: `${(r.amount / max) * 100}%`, backgroundColor: bar }} />
+                    </span>
+                    <span className="tabular w-9 shrink-0 text-right text-xs text-subtle">{pct}%</span>
                   </span>
                 </span>
               </>
@@ -87,13 +88,13 @@ export function CategoryBreakdown({ expense, income, currency }: {
                     type="button"
                     onClick={() => setOpenId(r.key)}
                     aria-label={`${r.name}: ${formatMoney(r.amount, currency)}, ${pct}%. Show subcategories`}
-                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
+                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 text-left min-[360px]:gap-3 transition-colors duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     {content}
-                    <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden />
+                    <ChevronRight className="size-4 shrink-0 text-subtle max-[359px]:hidden" aria-hidden />
                   </button>
                 ) : (
-                  <div className="flex items-center gap-3 p-2">{content}</div>
+                  <div className="flex items-center gap-2.5 p-2 min-[360px]:gap-3">{content}</div>
                 )}
               </li>
             );

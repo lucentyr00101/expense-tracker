@@ -72,8 +72,24 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
 
   return (
     <div className="glass flex flex-col gap-3 rounded-2xl p-3 sm:p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Time range" className="flex flex-wrap gap-1 rounded-lg bg-sunken p-1">
+      {/* Phones get two side-by-side dropdowns; six segmented buttons don't fit one row there. */}
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <label className="flex flex-col gap-1 text-xs text-muted sm:hidden">
+          Range
+          <select
+            value={preset}
+            onChange={(e) => pickPreset(e.target.value as Preset)}
+            className="field h-10 cursor-pointer py-0 text-sm"
+          >
+            {PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div role="group" aria-label="Time range" className="hidden flex-wrap gap-1 rounded-lg bg-sunken p-1 sm:flex">
           {PRESETS.map((p) => (
             <button
               key={p.value}
@@ -89,12 +105,12 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
           ))}
         </div>
 
-        <label className="ml-auto flex items-center gap-2 text-sm text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted sm:ml-auto sm:flex-row sm:items-center sm:gap-2 sm:text-sm">
           Group by
           <select
             value={groupParam ?? ""}
             onChange={(e) => go({ ...current, group: e.target.value || undefined })}
-            className="field h-9 w-auto cursor-pointer py-0 text-sm"
+            className="field h-10 cursor-pointer py-0 text-sm sm:h-9 sm:w-auto"
           >
             {GROUPS.map((g) => (
               <option key={g.value} value={g.value}>
@@ -144,48 +160,53 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
 
       {preset === "custom" && (
         <form
-          className="flex flex-wrap items-end gap-2"
+          className="grid grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap"
           onSubmit={(e) => {
             e.preventDefault();
             go({ preset: "custom", from, to });
           }}
         >
-          <label className="text-sm text-muted">
+          <label className="min-w-0 text-xs text-muted sm:text-sm">
             From
-            <input type="date" required value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="field mt-1 h-9 text-sm" />
+            <input type="date" required value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="field mt-1 h-10 px-2 text-sm sm:h-9 sm:px-3" />
           </label>
-          <label className="text-sm text-muted">
+          <label className="min-w-0 text-xs text-muted sm:text-sm">
             To
-            <input type="date" required value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="field mt-1 h-9 text-sm" />
+            <input type="date" required value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="field mt-1 h-10 px-2 text-sm sm:h-9 sm:px-3" />
           </label>
-          <button type="submit" className="btn btn-primary h-9">
+          <button type="submit" className="btn btn-primary col-span-2 h-10 sm:h-9">
             Apply
           </button>
         </form>
       )}
 
+      {/* On phones the period stretches between the arrows. */}
       <div className="flex items-center gap-2">
         {steppable && (
           <button
             type="button"
-            className="icon-btn size-9"
+            className="icon-btn size-10 shrink-0 border border-line-strong sm:size-9 sm:border-0"
             aria-label="Previous period"
             onClick={() => go({ preset: range.preset, offset: range.offset - 1 })}
           >
             <ChevronLeft className="size-5" aria-hidden />
           </button>
         )}
-        <p className="text-sm font-medium" aria-live="polite">
+        <p
+          className={`text-sm font-medium sm:flex-none sm:text-left ${steppable ? "flex-1 text-center" : ""}`}
+          aria-live="polite"
+        >
           {range.label}
           <span className="ml-2 font-normal text-subtle">
             {range.days} day{range.days === 1 ? "" : "s"}
             {range.groupAdjusted && " · grouping widened to fit"}
           </span>
+          {pending && <LoaderCircle className="ml-2 inline size-4 animate-spin align-[-0.125em] text-subtle" aria-label="Loading" />}
         </p>
         {steppable && (
           <button
             type="button"
-            className="icon-btn size-9 disabled:opacity-40"
+            className="icon-btn size-10 shrink-0 border border-line-strong disabled:opacity-40 sm:size-9 sm:border-0"
             aria-label="Next period"
             disabled={range.offset >= 0}
             onClick={() => go({ preset: range.preset, offset: range.offset + 1 || undefined })}
@@ -193,7 +214,6 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
             <ChevronRight className="size-5" aria-hidden />
           </button>
         )}
-        {pending && <LoaderCircle className="size-4 animate-spin text-subtle" aria-label="Loading" />}
       </div>
     </div>
   );

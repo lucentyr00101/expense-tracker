@@ -44,34 +44,39 @@ export function TransactionList({ transactions, categories, currency, canEdit, a
           const isIncome = t.type === "income";
           const author = authors?.[t.createdBy];
           return (
+            // Phones stack the amount over the actions so the category and note keep most of the width.
             <li key={t.id} className="flex items-center gap-3 py-3">
               <CategoryIcon icon={cat?.icon ?? "tag"} color={cat?.color ?? "#94a3b8"} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">
+                <p className="line-clamp-2 font-medium break-words">
                   {cat?.name ?? "Uncategorized"}
                   {sub && <span className="text-muted"> › {sub.name}</span>}
                 </p>
                 {t.note && <p className="truncate text-sm text-muted">{t.note}</p>}
               </div>
-              <p className={`tabular flex items-center gap-1 font-semibold ${isIncome ? "text-success" : ""}`}>
-                {isIncome ? (
-                  <ArrowUpRight className="size-4" aria-label="Income" />
-                ) : (
-                  <ArrowDownRight className="size-4 text-subtle" aria-label="Expense" />
-                )}
-                {formatMoney(t.amount, currency)}
-              </p>
-              {author && <AuthorAvatar name={author.name} image={author.image} />}
-              {canEdit && (
-              <div className="flex">
-                <button type="button" className="icon-btn" aria-label="Edit transaction" onClick={() => setEditing(t)}>
-                  <Pencil className="size-4" aria-hidden />
-                </button>
-                <button type="button" className="icon-btn hover:text-danger" aria-label="Delete transaction" onClick={() => setDeleting(t)}>
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
+              <div className="flex shrink-0 flex-col items-end sm:flex-row sm:items-center sm:gap-3">
+                <p className={`tabular flex items-center gap-1 font-semibold ${isIncome ? "text-success" : ""}`}>
+                  {isIncome ? (
+                    <ArrowUpRight className="size-4" aria-label="Income" />
+                  ) : (
+                    <ArrowDownRight className="size-4 text-subtle" aria-label="Expense" />
+                  )}
+                  {formatMoney(t.amount, currency)}
+                </p>
+                <div className="flex items-center gap-1 sm:gap-3">
+                  {author && <AuthorAvatar name={author.name} image={author.image} />}
+                  {canEdit && (
+                  <div className="-mr-3 flex sm:mr-0">
+                    <button type="button" className="icon-btn" aria-label="Edit transaction" onClick={() => setEditing(t)}>
+                      <Pencil className="size-4" aria-hidden />
+                    </button>
+                    <button type="button" className="icon-btn hover:text-danger" aria-label="Delete transaction" onClick={() => setDeleting(t)}>
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </div>
+                  )}
+                </div>
               </div>
-              )}
             </li>
           );
         })}

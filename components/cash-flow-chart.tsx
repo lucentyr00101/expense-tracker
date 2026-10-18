@@ -52,7 +52,23 @@ export function CashFlowChart({ data, expense, income, group, currency }: {
 
   return (
     <div>
-      <div className="mb-3 flex items-start justify-between gap-2">
+      {/* The card header lives here so the view toggle sits beside the title, leaving the legend the full width. */}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Cash flow</h2>
+          <p className="mt-0.5 text-sm text-muted">Per {group}</p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-ghost h-9 shrink-0 px-3"
+          onClick={() => setView(view === "chart" ? "table" : "chart")}
+        >
+          {view === "chart" ? <Table2 className="size-4" aria-hidden /> : <ChartColumn className="size-4" aria-hidden />}
+          {view === "chart" ? "Table" : "Chart"}
+        </button>
+      </div>
+
+      <div className="mb-3">
         <div className="flex min-w-0 flex-col gap-1">
           {[
             { label: "Expenses", list: expense },
@@ -61,14 +77,14 @@ export function CashFlowChart({ data, expense, income, group, currency }: {
             .filter((g) => g.list.length)
             .map((g) => (
               <ul key={g.label} className="flex flex-wrap items-center gap-x-1" aria-label={`${g.label} categories`}>
-                <li className="w-18 shrink-0 text-xs font-medium text-subtle">{g.label}</li>
+                <li className="w-full shrink-0 text-xs font-medium text-subtle sm:w-18">{g.label}</li>
                 {g.list.map((c) => (
                   <li key={c.id}>
                     <button
                       type="button"
                       aria-pressed={!hidden.has(c.id)}
                       onClick={() => toggle(c.id)}
-                      className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm transition-opacity duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring ${
+                      className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs transition-opacity sm:px-2 sm:text-sm duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring ${
                         hidden.has(c.id) ? "opacity-45" : ""
                       }`}
                     >
@@ -80,14 +96,6 @@ export function CashFlowChart({ data, expense, income, group, currency }: {
               </ul>
             ))}
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost h-9 shrink-0 px-3"
-          onClick={() => setView(view === "chart" ? "table" : "chart")}
-        >
-          {view === "chart" ? <Table2 className="size-4" aria-hidden /> : <ChartColumn className="size-4" aria-hidden />}
-          {view === "chart" ? "Table" : "Chart"}
-        </button>
       </div>
 
       {view === "chart" ? (

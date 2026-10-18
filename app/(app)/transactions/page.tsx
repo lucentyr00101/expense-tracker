@@ -51,11 +51,21 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
       <PageHeader
         title="Daily log"
         description={formatDate(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-        actions={<AddTransactionButton categories={categories} currency={currency} date={date} canEdit={canEdit} />}
+        actions={
+          // Today sits here rather than in the date row, where it would squeeze the date input on phones.
+          <div className="flex flex-wrap gap-2">
+            {date !== today && (
+              <Link href="/transactions" className="btn btn-ghost">
+                Today
+              </Link>
+            )}
+            <AddTransactionButton categories={categories} currency={currency} date={date} canEdit={canEdit} />
+          </div>
+        }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Link href={`/transactions?date=${addDays(date, -1)}`} className="icon-btn border border-line-strong" aria-label="Previous day">
+      <div className="mb-4 flex items-center gap-2">
+        <Link href={`/transactions?date=${addDays(date, -1)}`} className="icon-btn shrink-0 border border-line-strong" aria-label="Previous day">
           <ChevronLeft className="size-5" aria-hidden />
         </Link>
         <DateJump value={date} max={today} />
@@ -63,16 +73,11 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
           href={`/transactions?date=${addDays(date, 1)}`}
           aria-label="Next day"
           aria-disabled={date >= today}
-          className={`icon-btn border border-line-strong ${date >= today ? "pointer-events-none opacity-40" : ""}`}
+          className={`icon-btn shrink-0 border border-line-strong ${date >= today ? "pointer-events-none opacity-40" : ""}`}
           tabIndex={date >= today ? -1 : undefined}
         >
           <ChevronRight className="size-5" aria-hidden />
         </Link>
-        {date !== today && (
-          <Link href="/transactions" className="btn btn-ghost">
-            Today
-          </Link>
-        )}
       </div>
 
       <nav aria-label="This week" className="mb-6 grid grid-cols-7 gap-1.5 sm:gap-2">
@@ -103,7 +108,7 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
         })}
       </nav>
 
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      <div className="mb-6 grid gap-2 sm:grid-cols-3 sm:gap-3">
         <Stat label="Spent" value={formatMoney(spent, currency)} />
         <Stat label="Earned" value={formatMoney(earned, currency)} />
         <Stat label="Net" value={formatMoney(earned - spent, currency)} tone={earned - spent < 0 ? "danger" : "success"} />
@@ -124,9 +129,10 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
   return (
-    <div className="glass rounded-xl p-3 sm:p-4">
-      <p className="text-xs font-medium text-muted sm:text-sm">{label}</p>
-      <p className={`tabular mt-1 truncate font-semibold sm:text-xl ${tone === "danger" ? "text-danger" : tone === "success" ? "text-success" : ""}`}>
+    // A row of label and value on phones, where three columns leave no room for the amount.
+    <div className="glass flex min-w-0 items-baseline justify-between gap-3 rounded-xl px-4 py-2.5 sm:block sm:p-4">
+      <p className="text-sm font-medium text-muted">{label}</p>
+      <p className={`tabular truncate font-semibold sm:mt-1 sm:text-xl ${tone === "danger" ? "text-danger" : tone === "success" ? "text-success" : ""}`}>
         {value}
       </p>
     </div>

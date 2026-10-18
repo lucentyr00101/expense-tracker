@@ -30,9 +30,9 @@ export function BudgetForm({ categoryId, name, budget, currency, canEdit }: {
           disabled={!canEdit}
           defaultValue={budget ? centsToInput(budget) : ""}
           aria-describedby={state.error ? `${id}-error` : undefined}
-          className="field tabular h-10 w-32 text-sm"
+          className="field tabular h-10 min-w-0 flex-1 text-sm sm:w-32 sm:flex-none"
         />
-        <button type="submit" disabled={pending || !canEdit} className="btn btn-ghost h-10 px-3">
+        <button type="submit" disabled={pending || !canEdit} className="btn btn-ghost h-10 shrink-0 px-4">
           {pending ? <LoaderCircle className="size-4 animate-spin" aria-label="Saving" /> : "Save"}
         </button>
       </div>

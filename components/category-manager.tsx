@@ -59,11 +59,11 @@ export function CategoryManager({ categories, canEdit }: { categories: CategoryN
 
       <ul className="grid gap-4 md:grid-cols-2">
         {list.map((c) => (
-          <li key={c.id} className="glass rounded-2xl p-4">
+          <li key={c.id} className="glass min-w-0 rounded-2xl p-4">
             <div className="flex items-center gap-3">
               <CategoryIcon icon={c.icon} color={c.color} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{c.name}</p>
+                <p className="line-clamp-2 font-semibold break-words">{c.name}</p>
                 <p className="text-xs text-subtle">
                   {c.isSystem ? "Built-in" : "Custom"} · {c.children.length} subcategor{c.children.length === 1 ? "y" : "ies"}
                 </p>
