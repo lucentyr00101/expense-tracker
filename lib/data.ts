@@ -1,5 +1,5 @@
 import "server-only";
-import { ObjectId, type Filter } from "mongodb";
+import { ObjectId, type AnyBulkWriteOperation, type ClientSession, type Filter } from "mongodb";
 import { db } from "./db";
 import { SYSTEM_CATEGORIES, type IconKey, type TxType } from "./category-defs";
 import { buckets, toIso, toUtc, type Range } from "./dates";
@@ -556,4 +556,88 @@ export async function exportRows(ledgerId: string, from: string, to: string) {
       amount: (t.amount / 100).toFixed(2),
       note: t.note,
     }));
+}
+
+// ---------- Moving a ledger (accepting a household invite) ----------
+// These take an optional session so they can run inside a transaction. Operations in a transaction
+// must not overlap, so everything here runs sequentially.
+
+export type LedgerCounts = { transactions: number; categories: number; budgets: number };
+
+/** What a ledger holds: transactions, active custom categories and budgets. */
+export async function countLedgerData(ledgerId: string, session?: ClientSession): Promise<LedgerCounts> {
+  return {
+    transactions: await transactions.countDocuments({ ledgerId }, { session }),
+    categories: await categories.countDocuments({ ledgerId, archivedAt: null }, { session }),
+    budgets: await budgets.countDocuments({ ledgerId }, { session }),
+  };
+}
+
+/** Permanently delete everything on a ledger. System categories are untouched. */
+export async function deleteLedgerData(ledgerId: string, session?: ClientSession): Promise<void> {
+  await transactions.deleteMany({ ledgerId }, { session });
+  await budgets.deleteMany({ ledgerId }, { session });
+  await categories.deleteMany({ ledgerId }, { session });
+  await settings.deleteOne({ _id: ledgerId }, { session });
+}
+
+/**
+ * Move a ledger's categories, transactions and budgets into another ledger. An active custom category
+ * matching an active one visible there (same type, same parent, name ignoring case) is folded into it
+ * and archived. The target's budgets and currency win over the source's.
+ */
+export async function mergeLedgerInto(fromLedgerId: string, toLedgerId: string, session?: ClientSession): Promise<void> {
+  const now = new Date();
+  const sources = await categories.find({ ledgerId: fromLedgerId }, { session }).toArray();
+  const targets = await categories.find({ ...visibleTo(toLedgerId), archivedAt: null }, { session }).toArray();
+
+  // Top-level categories first, so children see their parent's mapping.
+  sources.sort((a, b) => Number(a.parentId !== null) - Number(b.parentId !== null));
+  const idMap = new Map<string, ObjectId>();
+  const mapped = (id: ObjectId) => idMap.get(id.toHexString()) ?? id;
+  const categoryOps: AnyBulkWriteOperation<CategoryDoc>[] = [];
+  for (const c of sources) {
+    const parentId = c.parentId && mapped(c.parentId);
+    const name = c.name.toLowerCase();
+    const match =
+      c.archivedAt === null
+        ? targets.find((t) => t.type === c.type && String(t.parentId) === String(parentId) && t.name.toLowerCase() === name)
+        : undefined;
+    idMap.set(c._id.toHexString(), match?._id ?? c._id);
+    categoryOps.push({
+      updateOne: {
+        filter: { _id: c._id },
+        update: { $set: { ledgerId: toLedgerId, parentId, ...(match ? { archivedAt: now } : {}) } },
+      },
+    });
+  }
+  if (categoryOps.length) await categories.bulkWrite(categoryOps, { session });
+
+  const txOps: AnyBulkWriteOperation<TransactionDoc>[] = [];
+  for (const [from, to] of idMap) {
+    if (from === to.toHexString()) continue;
+    const old = new ObjectId(from);
+    txOps.push(
+      { updateMany: { filter: { ledgerId: fromLedgerId, categoryId: old }, update: { $set: { categoryId: to } } } },
+      { updateMany: { filter: { ledgerId: fromLedgerId, subcategoryId: old }, update: { $set: { subcategoryId: to } } } },
+    );
+  }
+  if (txOps.length) await transactions.bulkWrite(txOps, { session });
+  await transactions.updateMany({ ledgerId: fromLedgerId }, { $set: { ledgerId: toLedgerId } }, { session });
+
+  // When both ledgers budget the same category, the target's budget wins.
+  const sourceBudgets = await budgets.find({ ledgerId: fromLedgerId }, { session }).toArray();
+  const targetBudgets = await budgets.find({ ledgerId: toLedgerId }, { session }).toArray();
+  const taken = new Set(targetBudgets.map((b) => b.categoryId.toHexString()));
+  for (const b of sourceBudgets) {
+    const categoryId = mapped(b.categoryId);
+    if (taken.has(categoryId.toHexString())) {
+      await budgets.deleteOne({ _id: b._id }, { session });
+    } else {
+      taken.add(categoryId.toHexString());
+      await budgets.updateOne({ _id: b._id }, { $set: { ledgerId: toLedgerId, categoryId } }, { session });
+    }
+  }
+
+  await settings.deleteOne({ _id: fromLedgerId }, { session });
 }
