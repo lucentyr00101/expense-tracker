@@ -181,7 +181,13 @@ function toCategory(doc: CategoryDoc): Category {
   };
 }
 
-const visibleTo = (ledgerId: string): Filter<CategoryDoc> => ({ ledgerId: { $in: [null, ledgerId] } });
+/**
+ * The ledger's own categories plus system ones. `$type: "null"` only matches an explicit null, so a
+ * legacy doc that still has `userId` and no `ledgerId` (written by old code) matches neither.
+ */
+const visibleTo = (ledgerId: string): Filter<CategoryDoc> => ({
+  $or: [{ ledgerId }, { ledgerId: { $type: "null" } }],
+});
 
 /** System + the user's categories as a tree, system ones first. */
 export async function listCategories(
