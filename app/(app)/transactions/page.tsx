@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Receipt } from "lucide-react";
 import { getToday, getLedger } from "@/lib/session";
 import { dailyTotals, getSettings, listCategories, listTransactions } from "@/lib/data";
 import { getHousehold, listUsers } from "@/lib/household";
@@ -119,7 +119,12 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
           <TransactionList transactions={transactions} categories={categories} currency={currency} canEdit={canEdit} authors={authors} />
         ) : (
           <EmptyState icon={<Receipt className="size-8" aria-hidden />} title="Nothing logged for this day">
-            Use <strong className="text-fg">Add transaction</strong> to record an expense or income.
+            {canEdit && (
+              <>
+                Use the <Plus className="inline size-4 align-[-0.125em] text-fg" aria-label="Add transaction" /> button to record
+                an expense or income.
+              </>
+            )}
           </EmptyState>
         )}
       </Card>

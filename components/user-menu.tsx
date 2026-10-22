@@ -1,7 +1,7 @@
 import { getUser } from "@/lib/session";
 import { SignOutButton } from "./sign-out-button";
 
-export async function UserMenu() {
+export async function UserMenu({ labelled = false }: { labelled?: boolean }) {
   const user = await getUser();
   return (
     <div className="flex items-center gap-3">
@@ -17,7 +17,7 @@ export async function UserMenu() {
         <p className="truncate text-sm font-medium">{user.name}</p>
         <p className="truncate text-xs text-subtle">{user.email}</p>
       </div>
-      <SignOutButton />
+      <SignOutButton labelled={labelled} />
     </div>
   );
 }

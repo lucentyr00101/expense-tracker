@@ -43,40 +43,48 @@ export function TransactionList({ transactions, categories, currency, canEdit, a
           const sub = t.subcategoryId ? lookup.get(t.subcategoryId) : null;
           const isIncome = t.type === "income";
           const author = authors?.[t.createdBy];
-          return (
-            // Phones stack the amount over the actions so the category and note keep most of the width.
-            <li key={t.id} className="flex items-center gap-3 py-3">
+          const content = (
+            <>
               <CategoryIcon icon={cat?.icon ?? "tag"} color={cat?.color ?? "#94a3b8"} />
-              <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 font-medium break-words">
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-2 font-medium break-words">
                   {cat?.name ?? "Uncategorized"}
                   {sub && <span className="text-muted"> › {sub.name}</span>}
-                </p>
-                {t.note && <p className="truncate text-sm text-muted">{t.note}</p>}
-              </div>
-              <div className="flex shrink-0 flex-col items-end sm:flex-row sm:items-center sm:gap-3">
-                <p className={`tabular flex items-center gap-1 font-semibold ${isIncome ? "text-success" : ""}`}>
-                  {isIncome ? (
-                    <ArrowUpRight className="size-4" aria-label="Income" />
-                  ) : (
-                    <ArrowDownRight className="size-4 text-subtle" aria-label="Expense" />
-                  )}
-                  {formatMoney(t.amount, currency)}
-                </p>
-                <div className="flex items-center gap-1 sm:gap-3">
-                  {author && <AuthorAvatar name={author.name} image={author.image} />}
-                  {canEdit && (
-                  <div className="-mr-3 flex sm:mr-0">
-                    <button type="button" className="icon-btn" aria-label="Edit transaction" onClick={() => setEditing(t)}>
-                      <Pencil className="size-4" aria-hidden />
-                    </button>
-                    <button type="button" className="icon-btn hover:text-danger" aria-label="Delete transaction" onClick={() => setDeleting(t)}>
-                      <Trash2 className="size-4" aria-hidden />
-                    </button>
-                  </div>
-                  )}
-                </div>
-              </div>
+                </span>
+                {t.note && <span className="block truncate text-sm text-muted">{t.note}</span>}
+              </span>
+              <span className={`tabular flex shrink-0 items-center gap-1 font-semibold ${isIncome ? "text-success" : ""}`}>
+                {isIncome ? (
+                  <ArrowUpRight className="size-4" aria-label="Income" />
+                ) : (
+                  <ArrowDownRight className="size-4 text-subtle" aria-label="Expense" />
+                )}
+                {formatMoney(t.amount, currency)}
+              </span>
+              {author && <AuthorAvatar name={author.name} image={author.image} />}
+            </>
+          );
+          return (
+            // The whole row opens the editor, a bigger target than an icon and one less control per row on phones.
+            <li key={t.id} className="flex items-center gap-1 py-1.5">
+              {canEdit ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(t)}
+                    className="group -ml-2 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg py-1.5 pr-2 pl-2 text-left transition-colors duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <span className="sr-only">Edit </span>
+                    {content}
+                    <Pencil className="hidden size-4 shrink-0 text-subtle transition-colors duration-150 group-hover:text-fg sm:block" aria-hidden />
+                  </button>
+                  <button type="button" className="icon-btn -mr-2 shrink-0 hover:text-danger" aria-label="Delete transaction" onClick={() => setDeleting(t)}>
+                    <Trash2 className="size-4" aria-hidden />
+                  </button>
+                </>
+              ) : (
+                <div className="flex min-w-0 flex-1 items-center gap-3 py-1.5">{content}</div>
+              )}
             </li>
           );
         })}

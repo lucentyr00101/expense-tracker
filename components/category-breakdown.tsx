@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, ChartColumn } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChartColumn } from "lucide-react";
 import type { CategoryTotal } from "@/lib/data";
 import type { TxType } from "@/lib/category-defs";
 import { formatMoney } from "@/lib/money";
 import { CategoryIcon } from "./category-icon";
 import { EmptyState } from "./ui";
+
+// Rows shown before "Show all"; a long tail of small categories would otherwise dwarf the chart beside it.
+const TOP = 6;
 
 /** Ranked horizontal bars; click a category to see its subcategories. */
 export function CategoryBreakdown({ expense, income, currency }: {
@@ -16,6 +19,7 @@ export function CategoryBreakdown({ expense, income, currency }: {
 }) {
   const [type, setType] = useState<TxType>("expense");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const list = type === "expense" ? expense : income;
   const open = list.find((c) => c.id === openId) ?? null;
   const total = list.reduce((s, c) => s + c.amount, 0);
@@ -27,6 +31,9 @@ export function CategoryBreakdown({ expense, income, currency }: {
     : list.map((c) => ({ key: c.id, name: c.name, amount: c.amount, cat: c }));
   const max = Math.max(1, ...rows.map((r) => r.amount));
   const base = open ? open.amount : total;
+  // Collapsing a single extra row saves nothing, so only cut when at least two would be hidden.
+  const collapsible = rows.length > TOP + 1;
+  const shown = collapsible && !showAll ? rows.slice(0, TOP) : rows;
 
   return (
     <div>
@@ -61,45 +68,58 @@ export function CategoryBreakdown({ expense, income, currency }: {
       {rows.length === 0 ? (
         <EmptyState icon={<ChartColumn className="size-8" aria-hidden />} title={`No ${type} in this range`} />
       ) : (
-        <ul className="flex flex-col gap-1">
-          {rows.map((r) => {
-            const pct = base ? Math.round((r.amount / base) * 100) : 0;
-            const content = (
-              <>
-                {r.cat && <CategoryIcon icon={r.cat.icon} color={r.cat.color} size="sm" />}
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-2 text-sm">
-                    <span className="truncate font-medium">{r.name}</span>
-                    <span className="tabular shrink-0">{formatMoney(r.amount, currency)}</span>
-                  </span>
-                  <span className="mt-1.5 flex items-center gap-2">
-                    <span aria-hidden className="block h-2 flex-1 overflow-hidden rounded-full bg-sunken">
-                      <span className="block h-full rounded-full" style={{ width: `${(r.amount / max) * 100}%`, backgroundColor: bar }} />
+        <>
+          <ul className="flex flex-col gap-1">
+            {shown.map((r) => {
+              const pct = base ? Math.round((r.amount / base) * 100) : 0;
+              const content = (
+                <>
+                  {r.cat && <CategoryIcon icon={r.cat.icon} color={r.cat.color} size="sm" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline justify-between gap-2 text-sm">
+                      <span className="truncate font-medium">{r.name}</span>
+                      <span className="tabular shrink-0">{formatMoney(r.amount, currency)}</span>
                     </span>
-                    <span className="tabular w-9 shrink-0 text-right text-xs text-subtle">{pct}%</span>
+                    <span className="mt-1.5 flex items-center gap-2">
+                      <span aria-hidden className="block h-2 flex-1 overflow-hidden rounded-full bg-sunken">
+                        <span className="block h-full rounded-full" style={{ width: `${(r.amount / max) * 100}%`, backgroundColor: bar }} />
+                      </span>
+                      <span className="tabular w-9 shrink-0 text-right text-xs text-subtle">{pct}%</span>
+                    </span>
                   </span>
-                </span>
-              </>
-            );
-            return (
-              <li key={r.key}>
-                {r.cat ? (
-                  <button
-                    type="button"
-                    onClick={() => setOpenId(r.key)}
-                    aria-label={`${r.name}: ${formatMoney(r.amount, currency)}, ${pct}%. Show subcategories`}
-                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 text-left min-[360px]:gap-3 transition-colors duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    {content}
-                    <ChevronRight className="size-4 shrink-0 text-subtle max-[359px]:hidden" aria-hidden />
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2.5 p-2 min-[360px]:gap-3">{content}</div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                </>
+              );
+              return (
+                <li key={r.key}>
+                  {r.cat ? (
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(r.key)}
+                      aria-label={`${r.name}: ${formatMoney(r.amount, currency)}, ${pct}%. Show subcategories`}
+                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 text-left min-[360px]:gap-3 transition-colors duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      {content}
+                      <ChevronRight className="size-4 shrink-0 text-subtle max-[359px]:hidden" aria-hidden />
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2.5 p-2 min-[360px]:gap-3">{content}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {collapsible && (
+            <button
+              type="button"
+              aria-expanded={showAll}
+              onClick={() => setShowAll(!showAll)}
+              className="mt-2 flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-muted transition-colors duration-150 hover:bg-sunken hover:text-fg focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              {showAll ? `Show top ${TOP}` : `Show all ${rows.length}`}
+              <ChevronDown className={`size-4 transition-transform duration-200 ${showAll ? "rotate-180" : ""}`} aria-hidden />
+            </button>
+          )}
+        </>
       )}
     </div>
   );

@@ -19,7 +19,7 @@ export default function SettingsPage() {
       <div className="flex max-w-2xl flex-col gap-6">
         <Card title="Account">
           <Suspense fallback={<UserMenuSkeleton />}>
-            <UserMenu />
+            <UserMenu labelled />
           </Suspense>
         </Card>
         <Suspense fallback={<Skeleton className="h-32" />}>

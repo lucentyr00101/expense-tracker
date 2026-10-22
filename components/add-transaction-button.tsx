@@ -17,9 +17,14 @@ export function AddTransactionButton({ categories, currency, date, canEdit }: {
   if (!canEdit) return null;
   return (
     <>
-      <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
-        <Plus className="size-5" aria-hidden />
-        Add transaction
+      {/* Below lg it floats above the bottom nav, within thumb reach; from lg it sits in the page header. */}
+      <button
+        type="button"
+        className="btn btn-primary fixed right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-30 size-14 rounded-full p-0 shadow-lg lg:static lg:h-11 lg:w-auto lg:rounded-lg lg:px-4 lg:shadow-none"
+        onClick={() => setOpen(true)}
+      >
+        <Plus className="size-6 lg:size-5" aria-hidden />
+        <span className="sr-only lg:not-sr-only">Add transaction</span>
       </button>
       <Modal open={open} onClose={close} title="New transaction">
         <TransactionForm categories={categories} currency={currency} date={date} onDone={close} />

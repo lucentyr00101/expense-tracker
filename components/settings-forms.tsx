@@ -14,8 +14,8 @@ export function CurrencyForm({ currency, canEdit }: { currency: string; canEdit:
         <label htmlFor="currency" className="label">
           Display currency
         </label>
-        <div className="flex flex-wrap gap-2">
-          <select id="currency" name="currency" defaultValue={currency} disabled={!canEdit} className="field max-w-xs cursor-pointer">
+        <div className="flex gap-2">
+          <select id="currency" name="currency" defaultValue={currency} disabled={!canEdit} className="field min-w-0 flex-1 cursor-pointer sm:max-w-xs">
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.code} — {c.name}
@@ -41,20 +41,21 @@ export function CurrencyForm({ currency, canEdit }: { currency: string; canEdit:
 
 export function ExportForm({ from, to }: { from: string; to: string }) {
   return (
-    <form action="/api/export" method="get" className="flex flex-wrap items-end gap-3">
-      <div>
+    // Phones put the two dates side by side with a full-width button below; wider screens fit one row.
+    <form action="/api/export" method="get" className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
+      <div className="min-w-0">
         <label htmlFor="export-from" className="label">
           From
         </label>
         <input id="export-from" name="from" type="date" required defaultValue={from} className="field" />
       </div>
-      <div>
+      <div className="min-w-0">
         <label htmlFor="export-to" className="label">
           To
         </label>
         <input id="export-to" name="to" type="date" required defaultValue={to} className="field" />
       </div>
-      <button type="submit" className="btn btn-ghost">
+      <button type="submit" className="btn btn-ghost col-span-2">
         <Download className="size-4" aria-hidden />
         Download CSV
       </button>

@@ -29,7 +29,8 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </Suspense>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:pb-12">
+      {/* Bottom padding clears the bottom nav and the floating add button below lg. */}
+      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-40 sm:px-6 lg:pb-12">
         <Suspense fallback={null}>
           <InviteBanner />
         </Suspense>

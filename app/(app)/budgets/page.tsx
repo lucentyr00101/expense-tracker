@@ -65,24 +65,28 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
         </Card>
       )}
 
-      <Card title="Categories" description={`Leave empty for no limit. Amounts in ${currency}.`}>
+      <Card title="Categories" description={`Amounts in ${currency}, saved when you leave the field. Leave empty for no limit.`}>
         <ul className="divide-y divide-line">
           {rows.map((r) => (
-            <li key={r.categoryId} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
+            // Name and limit share the top line so each row stays short on phones; the meter spans beneath.
+            <li key={r.categoryId} className="flex items-start gap-3 py-4">
+              {/* Under 360px the icon would squeeze names like "Transportation" into a mid-word break. */}
+              <span className="max-[359px]:hidden">
                 <CategoryIcon icon={r.icon} color={r.color} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{r.name}</p>
-                  {r.budget !== null ? (
-                    <div className="mt-1.5">
-                      <BudgetMeter spent={r.spent} budget={r.budget} currency={currency} />
-                    </div>
-                  ) : (
-                    <p className="tabular text-sm text-muted">Spent {formatMoney(r.spent, currency)}</p>
-                  )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
+                  <p className="line-clamp-2 min-w-0 flex-1 pt-2 font-medium break-words">{r.name}</p>
+                  <BudgetForm key={`${r.categoryId}-${r.budget}`} categoryId={r.categoryId} name={r.name} budget={r.budget} currency={currency} canEdit={canEdit} />
                 </div>
+                {r.budget !== null ? (
+                  <div className="mt-2">
+                    <BudgetMeter spent={r.spent} budget={r.budget} currency={currency} />
+                  </div>
+                ) : (
+                  <p className="tabular mt-1 text-sm text-muted">Spent {formatMoney(r.spent, currency)}</p>
+                )}
               </div>
-              <BudgetForm key={`${r.categoryId}-${r.budget}`} categoryId={r.categoryId} name={r.name} budget={r.budget} currency={currency} canEdit={canEdit} />
             </li>
           ))}
         </ul>
