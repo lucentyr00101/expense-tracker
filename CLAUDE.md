@@ -60,7 +60,7 @@ If the dev server keeps serving old CSS after `app/globals.css` changes, the Tur
 
 **UI:**
 - Design tokens are CSS variables in `app/globals.css`, mapped to Tailwind colors in `@theme inline` (`bg-surface`, `text-muted`, `bg-primary`, `text-expense`…). The theme is light only (warm gold & plum). Reusable classes `.glass`, `.field`, `.label`, `.btn`, `.btn-primary`, `.btn-ghost`, `.btn-danger` and `.icon-btn` are defined there. Use tokens, not raw hex.
-- `design-system/expense-tracker/MASTER.md` records the palette and the reasons behind it. Chart series colors (`--series-expense`, `--series-income`) were checked for colorblind separation, so re-validate before changing them.
+- `design-system/pursely/MASTER.md` records the palette and the reasons behind it. Chart series colors (`--series-expense`, `--series-income`) were checked for colorblind separation, so re-validate before changing them.
 - Dialogs use `components/modal.tsx` (native `<dialog>`). Put `data-autofocus` on the field that should get focus. React's `autoFocus` doesn't work because it runs before `showModal()`.
 - Give `<select>` and other form controls an explicit `aria-label` or `htmlFor` label. A wrapping `<label>` pulls the selected option's text into the accessible name.
 

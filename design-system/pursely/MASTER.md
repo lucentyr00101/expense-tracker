@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** Expense Tracker
+**Project:** Pursely
 **Generated:** 2026-10-17 16:00:23
 **Category:** Personal Finance Tracker
 **Design Dials:** Motion 3/10 (Subtle) | Density 7/10 (Standard)

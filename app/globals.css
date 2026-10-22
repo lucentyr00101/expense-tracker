@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Design system: design-system/expense-tracker/MASTER.md — warm gold & plum, light only. */
+/* Design system: design-system/pursely/MASTER.md — warm gold & plum, light only. */
 :root {
   color-scheme: light;
   --bg: #fbf7f0;
