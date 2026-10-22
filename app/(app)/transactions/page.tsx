@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ChevronLeft, ChevronRight, Plus, Receipt, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Receipt, Repeat, Search } from "lucide-react";
 import { getToday, getLedger } from "@/lib/session";
 import { dailyTotals, getSettings, listCategories, listTransactions } from "@/lib/data";
 import { getHousehold, listUsers } from "@/lib/household";
@@ -57,6 +57,10 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
             <Link href="/transactions/search" className="btn btn-ghost">
               <Search className="size-4" aria-hidden />
               Search
+            </Link>
+            <Link href="/transactions/recurring" className="btn btn-ghost">
+              <Repeat className="size-4" aria-hidden />
+              Recurring
             </Link>
             {date !== today && (
               <Link href="/transactions" className="btn btn-ghost">

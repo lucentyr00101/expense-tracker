@@ -14,8 +14,8 @@ export function AcceptInvite({ invite, preview }: { invite: IncomingInvite; prev
   const [confirmed, setConfirmed] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
-  const empty = preview.transactions + preview.categories + preview.budgets === 0;
-  const counts = `${plural(preview.transactions, "transaction")}, ${plural(preview.categories, "custom category", "custom categories")} and ${plural(preview.budgets, "budget")}`;
+  const empty = preview.transactions + preview.categories + preview.budgets + preview.recurring === 0;
+  const counts = `${plural(preview.transactions, "transaction")}, ${plural(preview.recurring, "recurring entry", "recurring entries")}, ${plural(preview.categories, "custom category", "custom categories")} and ${plural(preview.budgets, "budget")}`;
 
   const respond = (response: "merge" | "replace" | "decline") =>
     start(async () => {

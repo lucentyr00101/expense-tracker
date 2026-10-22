@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { auth } from "./auth";
 import { connectDb } from "./db";
+import { generateDueRecurring } from "./data";
 import { todayIn } from "./dates";
 import { resolveLedger, type LedgerContext } from "./household";
 
@@ -27,10 +28,15 @@ export const getUser = cache(async (): Promise<SessionUser> => {
   return { id, name, email, image: image ?? null };
 });
 
-/** The signed-in user plus the ledger they work in, or a redirect to the sign-in page. Deduped per request. */
+/**
+ * The signed-in user plus the ledger they work in, or a redirect to the sign-in page. Deduped per
+ * request. Also generates the ledger's recurring entries that have come due, so every page shows them.
+ */
 export const getLedger = cache(async (): Promise<LedgerContext & { user: SessionUser }> => {
   const user = await getUser();
-  return { ...(await resolveLedger(user.id)), user };
+  const [ctx, today] = await Promise.all([resolveLedger(user.id), getToday()]);
+  await generateDueRecurring(ctx.ledgerId, today);
+  return { ...ctx, user };
 });
 
 /** For Server Actions and route handlers: null instead of a redirect. */

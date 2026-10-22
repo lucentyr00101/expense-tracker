@@ -2,12 +2,13 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
-import { getLedgerContext, getSession } from "@/lib/session";
+import { getLedgerContext, getSession, getToday } from "@/lib/session";
 import * as household from "@/lib/household";
 import type { LedgerContext } from "@/lib/household";
 import * as data from "@/lib/data";
 import { CATEGORY_COLORS, ICON_KEYS } from "@/lib/category-defs";
-import { isIsoDate } from "@/lib/dates";
+import { GRANULARITIES, isIsoDate } from "@/lib/dates";
+import { MAX_EVERY } from "@/lib/recurring";
 import { isCurrency, parseAmount } from "@/lib/money";
 
 export type ActionState = { ok: boolean; error?: string; at?: number };
@@ -58,6 +59,30 @@ const txSchema = z.object({
   note: z.string().trim().max(200, "Keep the note under 200 characters.").default(""),
 });
 
+const recurringSchema = z
+  .object({
+    type: z.enum(["expense", "income"]),
+    amount,
+    categoryId: z.string().min(1, "Pick a category."),
+    note: z.string().trim().max(200, "Keep the note under 200 characters.").default(""),
+    every: z.coerce
+      .number()
+      .int("Repeat every whole number of days, weeks, months or years.")
+      .min(1, "Repeat at least every 1.")
+      .max(MAX_EVERY, `Repeat at most every ${MAX_EVERY}.`),
+    unit: z.enum(GRANULARITIES),
+    start: z.string().refine(isIsoDate, "Pick a valid start date."),
+    end: z
+      .string()
+      .default("")
+      .refine((v) => v === "" || isIsoDate(v), "Pick a valid end date.")
+      .transform((v) => v || null),
+  })
+  .refine((v) => !v.end || v.end >= v.start, { message: "The end date can't be before the start date." });
+
+/** Repeat options on the new-transaction form: every 1 of the unit, starting on the transaction's date. */
+const repeatSchema = z.enum(GRANULARITIES).optional().catch(undefined);
+
 const categorySchema = z.object({
   name: z.string().trim().min(1, "Give the category a name.").max(40, "Keep the name under 40 characters."),
   icon: z.enum(ICON_KEYS),
@@ -81,10 +106,46 @@ export async function saveTransaction(_: ActionState, formData: FormData): Promi
   if (!parsed.success) return fail(firstError(parsed.error));
 
   const id = formData.get("id");
+  const repeat = repeatSchema.parse(formData.get("repeat") || undefined);
   const error =
     typeof id === "string" && id
       ? await data.updateTransaction(ctx.ledgerId, id, parsed.data)
-      : await data.createTransaction(ctx.ledgerId, ctx.userId, parsed.data);
+      : repeat
+        ? // The first entry appears when the page reloads, like every later one.
+          await data.createRecurring(ctx.ledgerId, ctx.userId, { ...parsed.data, every: 1, unit: repeat, start: parsed.data.date, end: null })
+        : await data.createTransaction(ctx.ledgerId, ctx.userId, parsed.data);
+  return error ? fail(error) : done();
+}
+
+// ---------- Recurring ----------
+
+export async function saveRecurring(_: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await editorContext();
+  if (isFailure(ctx)) return ctx;
+  const parsed = recurringSchema.safeParse(fields(formData));
+  if (!parsed.success) return fail(firstError(parsed.error));
+
+  const id = formData.get("id");
+  const error =
+    typeof id === "string" && id
+      ? await data.updateRecurring(ctx.ledgerId, id, parsed.data)
+      : await data.createRecurring(ctx.ledgerId, ctx.userId, parsed.data);
+  return error ? fail(error) : done();
+}
+
+export async function removeRecurring(id: string): Promise<ActionState> {
+  if (!isId(id)) return fail(BAD_ID);
+  const ctx = await editorContext();
+  if (isFailure(ctx)) return ctx;
+  await data.deleteRecurring(ctx.ledgerId, id);
+  return done();
+}
+
+export async function pauseRecurring(id: string, paused: boolean): Promise<ActionState> {
+  if (!isId(id) || typeof paused !== "boolean") return fail(BAD_ID);
+  const ctx = await editorContext();
+  if (isFailure(ctx)) return ctx;
+  const error = await data.setRecurringPaused(ctx.ledgerId, id, paused, await getToday());
   return error ? fail(error) : done();
 }
 

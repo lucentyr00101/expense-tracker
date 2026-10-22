@@ -2,8 +2,9 @@ import "server-only";
 import { ObjectId, type AnyBulkWriteOperation, type ClientSession, type Filter } from "mongodb";
 import { db } from "./db";
 import { SYSTEM_CATEGORIES, type IconKey, type TxType } from "./category-defs";
-import { buckets, toIso, toUtc, type Range } from "./dates";
+import { buckets, toIso, toUtc, type Granularity, type Range } from "./dates";
 import { DEFAULT_CURRENCY } from "./money";
+import { occurrence } from "./recurring";
 
 // ---------- Documents ----------
 
@@ -30,6 +31,28 @@ type TransactionDoc = {
   subcategoryId: ObjectId | null;
   note: string;
   date: Date; // UTC midnight of the calendar day
+  recurringId?: ObjectId; // the rule that generated it, until its date is edited
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** A repeating transaction. Occurrence k falls on occurrence(startDate, unit, every, k). */
+type RecurringDoc = {
+  _id: ObjectId;
+  ledgerId: string;
+  createdBy: string;
+  type: TxType;
+  amount: number; // cents
+  categoryId: ObjectId;
+  subcategoryId: ObjectId | null;
+  note: string;
+  every: number;
+  unit: Granularity;
+  startDate: Date;
+  endDate: Date | null; // last day an occurrence may fall on
+  nextIndex: number; // occurrences before this one have been generated
+  nextDate: Date | null; // occurrence nextIndex; null once past endDate
+  pausedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -41,6 +64,7 @@ const categories = db.collection<CategoryDoc>("categories");
 const transactions = db.collection<TransactionDoc>("transactions");
 const budgets = db.collection<BudgetDoc>("budgets");
 const settings = db.collection<SettingsDoc>("settings");
+const recurring = db.collection<RecurringDoc>("recurring");
 
 // ---------- One-time setup ----------
 
@@ -119,6 +143,12 @@ export function ensureSetup(): Promise<void> {
       categories.createIndex({ key: 1 }, { unique: true, partialFilterExpression: { key: { $type: "string" } } }),
       transactions.createIndex({ ledgerId: 1, date: -1 }),
       budgets.createIndex({ ledgerId: 1, categoryId: 1 }, { unique: true }),
+      recurring.createIndex({ ledgerId: 1, nextDate: 1 }),
+      // One entry per rule per day, so two requests generating the same occurrence can't both insert it.
+      transactions.createIndex(
+        { recurringId: 1, date: 1 },
+        { unique: true, partialFilterExpression: { recurringId: { $type: "objectId" } } },
+      ),
     ]);
 
     // Batched: this runs on every cold start, and each round trip to the database counts.
@@ -302,6 +332,11 @@ export async function archiveCategory(ledgerId: string, id: string): Promise<str
     { $set: { archivedAt: now } },
   );
   await budgets.deleteMany({ ledgerId, categoryId: doc._id });
+  // Recurring entries in it stop until someone picks a new category.
+  await recurring.updateMany(
+    { ledgerId, pausedAt: null, $or: [{ categoryId: doc._id }, { subcategoryId: doc._id }] },
+    { $set: { pausedAt: now } },
+  );
   return null;
 }
 
@@ -320,6 +355,7 @@ export type Transaction = {
   categoryId: string;
   subcategoryId: string | null;
   createdBy: string;
+  recurringId: string | null;
 };
 
 export type TransactionInput = {
@@ -367,17 +403,25 @@ export async function updateTransaction(ledgerId: string, id: string, input: Tra
   if (typeof id !== "string" || !ObjectId.isValid(id)) return "Transaction not found.";
   const resolved = await resolveCategory(ledgerId, input.type, input.categoryId);
   if (!resolved) return "Pick a valid category.";
+  const _id = new ObjectId(id);
+  const existing = await transactions.findOne({ _id, ledgerId }, { projection: { date: 1 } });
+  if (!existing) return "Transaction not found.";
+  const date = toUtc(input.date);
+  // A generated entry moved to another day no longer holds its rule's slot for that day, which could
+  // collide with another occurrence.
+  const moved = +existing.date !== +date;
   const result = await transactions.updateOne(
-    { _id: new ObjectId(id), ledgerId },
+    { _id, ledgerId },
     {
       $set: {
         type: input.type,
         amount: input.amount,
         note: input.note,
-        date: toUtc(input.date),
+        date,
         ...resolved,
         updatedAt: new Date(),
       },
+      ...(moved && { $unset: { recurringId: "" } }),
     },
   );
   return result.matchedCount ? null : "Transaction not found.";
@@ -403,6 +447,7 @@ function toTransaction(d: TransactionDoc): Transaction {
     categoryId: d.categoryId.toHexString(),
     subcategoryId: d.subcategoryId?.toHexString() ?? null,
     createdBy: d.createdBy,
+    recurringId: d.recurringId?.toHexString() ?? null,
   };
 }
 
@@ -488,6 +533,198 @@ export async function dailyTotals(ledgerId: string, from: string, to: string): P
   for (const day of buckets(from, to, "day")) map.set(day, { date: day, expense: 0, income: 0 });
   for (const r of rows) map.get(toIso(r._id.date))![r._id.type] = r.total;
   return [...map.values()];
+}
+
+// ---------- Recurring ----------
+
+export type Recurring = {
+  id: string;
+  type: TxType;
+  amount: number;
+  note: string;
+  categoryId: string;
+  subcategoryId: string | null;
+  every: number;
+  unit: Granularity;
+  startDate: string;
+  endDate: string | null;
+  nextDate: string | null; // null once finished
+  paused: boolean;
+  createdBy: string;
+};
+
+export type RecurringInput = {
+  type: TxType;
+  amount: number;
+  note: string;
+  categoryId: string; // may be a subcategory id
+  every: number;
+  unit: Granularity;
+  start: string; // first occurrence; on an edit, the next one
+  end: string | null;
+};
+
+function toRecurring(d: RecurringDoc): Recurring {
+  return {
+    id: d._id.toHexString(),
+    type: d.type,
+    amount: d.amount,
+    note: d.note,
+    categoryId: d.categoryId.toHexString(),
+    subcategoryId: d.subcategoryId?.toHexString() ?? null,
+    every: d.every,
+    unit: d.unit,
+    startDate: toIso(d.startDate),
+    endDate: d.endDate && toIso(d.endDate),
+    nextDate: d.nextDate && toIso(d.nextDate),
+    paused: d.pausedAt !== null,
+    createdBy: d.createdBy,
+  };
+}
+
+/** Active rules by next date, then paused ones, then finished ones. */
+export async function listRecurring(ledgerId: string): Promise<Recurring[]> {
+  await ensureSetup();
+  const docs = await recurring.find({ ledgerId }).sort({ createdAt: 1 }).toArray();
+  const rank = (r: Recurring) => (r.nextDate === null ? 2 : r.paused ? 1 : 0);
+  return docs
+    .map(toRecurring)
+    .sort((a, b) => rank(a) - rank(b) || (a.nextDate ?? "").localeCompare(b.nextDate ?? ""));
+}
+
+/** The schedule fields for a rule anchored at `start`: its first occurrence is `start` itself. */
+function schedule(input: RecurringInput) {
+  const end = input.end ? toUtc(input.end) : null;
+  const start = toUtc(input.start);
+  return {
+    every: input.every,
+    unit: input.unit,
+    startDate: start,
+    endDate: end,
+    nextIndex: 0,
+    nextDate: end && start > end ? null : start,
+  };
+}
+
+export async function createRecurring(ledgerId: string, createdBy: string, input: RecurringInput): Promise<string | null> {
+  await ensureSetup();
+  const resolved = await resolveCategory(ledgerId, input.type, input.categoryId);
+  if (!resolved) return "Pick a valid category.";
+  const now = new Date();
+  await recurring.insertOne({
+    _id: new ObjectId(),
+    ledgerId,
+    createdBy,
+    type: input.type,
+    amount: input.amount,
+    note: input.note,
+    ...resolved,
+    ...schedule(input),
+    pausedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return null;
+}
+
+/**
+ * Re-anchors the schedule at `input.start`, so the changes apply from that date on. Entries already
+ * generated stay as they are, and the unique index skips any occurrence that already exists.
+ */
+export async function updateRecurring(ledgerId: string, id: string, input: RecurringInput): Promise<string | null> {
+  if (typeof id !== "string" || !ObjectId.isValid(id)) return "Recurring entry not found.";
+  const resolved = await resolveCategory(ledgerId, input.type, input.categoryId);
+  if (!resolved) return "Pick a valid category.";
+  const result = await recurring.updateOne(
+    { _id: new ObjectId(id), ledgerId },
+    { $set: { type: input.type, amount: input.amount, note: input.note, ...resolved, ...schedule(input), updatedAt: new Date() } },
+  );
+  return result.matchedCount ? null : "Recurring entry not found.";
+}
+
+/** Deletes the rule. Entries it generated stay, as ordinary transactions. */
+export async function deleteRecurring(ledgerId: string, id: string): Promise<void> {
+  if (typeof id !== "string" || !ObjectId.isValid(id)) return;
+  const _id = new ObjectId(id);
+  const result = await recurring.deleteOne({ _id, ledgerId });
+  if (result.deletedCount) await transactions.updateMany({ ledgerId, recurringId: _id }, { $unset: { recurringId: "" } });
+}
+
+/** Resuming skips the occurrences missed while paused; the next one is today or later. */
+export async function setRecurringPaused(ledgerId: string, id: string, paused: boolean, today: string): Promise<string | null> {
+  if (typeof id !== "string" || !ObjectId.isValid(id)) return "Recurring entry not found.";
+  const doc = await recurring.findOne({ _id: new ObjectId(id), ledgerId });
+  if (!doc) return "Recurring entry not found.";
+  if (paused) {
+    if (doc.pausedAt === null) await recurring.updateOne({ _id: doc._id }, { $set: { pausedAt: new Date(), updatedAt: new Date() } });
+    return null;
+  }
+  if (!(await findUsableCategory(ledgerId, (doc.subcategoryId ?? doc.categoryId).toHexString()))) {
+    return "Its category was removed. Edit it to pick another, then resume.";
+  }
+  const start = toIso(doc.startDate);
+  const end = doc.endDate && toIso(doc.endDate);
+  let k = doc.nextIndex;
+  while (occurrence(start, doc.unit, doc.every, k) < today) k++;
+  const next = occurrence(start, doc.unit, doc.every, k);
+  await recurring.updateOne(
+    { _id: doc._id },
+    { $set: { pausedAt: null, nextIndex: k, nextDate: end && next > end ? null : toUtc(next), updatedAt: new Date() } },
+  );
+  return null;
+}
+
+// Caps one request's work; a rule further behind catches up over the next few requests.
+const MAX_GENERATED = 100;
+
+/**
+ * Inserts every occurrence due on or before `today` and advances the rules. Runs on each page load.
+ * Inserting before advancing means a crash in between only repeats inserts, which the unique
+ * {recurringId, date} index drops; the nextIndex guard stops two requests advancing a rule twice.
+ */
+export async function generateDueRecurring(ledgerId: string, today: string): Promise<void> {
+  const due = await recurring.find({ ledgerId, pausedAt: null, nextDate: { $lte: toUtc(today) } }).toArray();
+  for (const rule of due) {
+    const start = toIso(rule.startDate);
+    const end = rule.endDate && toIso(rule.endDate);
+    const dates: string[] = [];
+    let k = rule.nextIndex;
+    let date = occurrence(start, rule.unit, rule.every, k);
+    while (date <= today && (!end || date <= end) && dates.length < MAX_GENERATED) {
+      dates.push(date);
+      date = occurrence(start, rule.unit, rule.every, ++k);
+    }
+    const now = new Date();
+    if (dates.length) {
+      await transactions
+        .insertMany(
+          dates.map((d) => ({
+            _id: new ObjectId(),
+            ledgerId,
+            createdBy: rule.createdBy,
+            type: rule.type,
+            amount: rule.amount,
+            note: rule.note,
+            categoryId: rule.categoryId,
+            subcategoryId: rule.subcategoryId,
+            date: toUtc(d),
+            recurringId: rule._id,
+            createdAt: now,
+            updatedAt: now,
+          })),
+          { ordered: false },
+        )
+        .catch((error) => {
+          // Duplicate key: another request generated some of these first. Anything else is real.
+          const errors: { code?: number }[] = [error?.writeErrors ?? error].flat();
+          if (!errors.every((e) => e?.code === 11000)) throw error;
+        });
+    }
+    await recurring.updateOne(
+      { _id: rule._id, nextIndex: rule.nextIndex },
+      { $set: { nextIndex: k, nextDate: end && date > end ? null : toUtc(date), updatedAt: now } },
+    );
+  }
 }
 
 // ---------- Summary ----------
@@ -687,7 +924,7 @@ export async function exportRows(ledgerId: string, from: string, to: string) {
 // These take an optional session so they can run inside a transaction. Operations in a transaction
 // must not overlap, so everything here runs sequentially.
 
-export type LedgerCounts = { transactions: number; categories: number; budgets: number };
+export type LedgerCounts = { transactions: number; categories: number; budgets: number; recurring: number };
 
 /** What a ledger holds: transactions, active custom categories and budgets. */
 export async function countLedgerData(ledgerId: string, session?: ClientSession): Promise<LedgerCounts> {
@@ -695,19 +932,21 @@ export async function countLedgerData(ledgerId: string, session?: ClientSession)
     transactions: await transactions.countDocuments({ ledgerId }, { session }),
     categories: await categories.countDocuments({ ledgerId, archivedAt: null }, { session }),
     budgets: await budgets.countDocuments({ ledgerId }, { session }),
+    recurring: await recurring.countDocuments({ ledgerId }, { session }),
   };
 }
 
 /** Permanently delete everything on a ledger. System categories are untouched. */
 export async function deleteLedgerData(ledgerId: string, session?: ClientSession): Promise<void> {
   await transactions.deleteMany({ ledgerId }, { session });
+  await recurring.deleteMany({ ledgerId }, { session });
   await budgets.deleteMany({ ledgerId }, { session });
   await categories.deleteMany({ ledgerId }, { session });
   await settings.deleteOne({ _id: ledgerId }, { session });
 }
 
 /**
- * Move a ledger's categories, transactions and budgets into another ledger. An active custom category
+ * Move a ledger's categories, transactions, recurring rules and budgets into another ledger. An active custom category
  * matching an active one visible there (same type, same parent, name ignoring case) is folded into it
  * and archived. The target's budgets and currency win over the source's.
  */
@@ -749,6 +988,18 @@ export async function mergeLedgerInto(fromLedgerId: string, toLedgerId: string, 
   }
   if (txOps.length) await transactions.bulkWrite(txOps, { session });
   await transactions.updateMany({ ledgerId: fromLedgerId }, { $set: { ledgerId: toLedgerId } }, { session });
+
+  const ruleOps: AnyBulkWriteOperation<RecurringDoc>[] = [];
+  for (const [from, to] of idMap) {
+    if (from === to.toHexString()) continue;
+    const old = new ObjectId(from);
+    ruleOps.push(
+      { updateMany: { filter: { ledgerId: fromLedgerId, categoryId: old }, update: { $set: { categoryId: to } } } },
+      { updateMany: { filter: { ledgerId: fromLedgerId, subcategoryId: old }, update: { $set: { subcategoryId: to } } } },
+    );
+  }
+  if (ruleOps.length) await recurring.bulkWrite(ruleOps, { session });
+  await recurring.updateMany({ ledgerId: fromLedgerId }, { $set: { ledgerId: toLedgerId } }, { session });
 
   // When both ledgers budget the same category, the target's budget wins.
   const sourceBudgets = await budgets.find({ ledgerId: fromLedgerId }, { session }).toArray();

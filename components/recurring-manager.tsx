@@ -1,0 +1,287 @@
+"use client";
+
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
+import { LoaderCircle, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { pauseRecurring, removeRecurring, saveRecurring, type ActionState } from "@/app/actions";
+import type { CategoryNode, Recurring } from "@/lib/data";
+import type { TxType } from "@/lib/category-defs";
+import { formatDate, GRANULARITIES, type Granularity } from "@/lib/dates";
+import { centsToInput, formatMoney } from "@/lib/money";
+import { describeSchedule, MAX_EVERY } from "@/lib/recurring";
+import { CategoryIcon } from "./category-icon";
+import { Modal } from "./modal";
+import { CategorySelect, TypeToggle } from "./transaction-form";
+import { buildLookup } from "./transaction-list";
+import { FormError } from "./ui";
+
+const UNIT_LABELS: Record<Granularity, [string, string]> = {
+  day: ["day", "days"],
+  week: ["week", "weeks"],
+  month: ["month", "months"],
+  year: ["year", "years"],
+};
+
+export function AddRecurringButton({ categories, currency, today }: { categories: CategoryNode[]; currency: string; today: string }) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  return (
+    <>
+      <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
+        <Plus className="size-5" aria-hidden />
+        New recurring
+      </button>
+      <Modal open={open} onClose={close} title="New recurring entry">
+        <RecurringForm categories={categories} currency={currency} today={today} onDone={close} />
+      </Modal>
+    </>
+  );
+}
+
+export function RecurringList({ rules, categories, currency, canEdit, today }: {
+  rules: Recurring[];
+  categories: CategoryNode[];
+  currency: string;
+  canEdit: boolean;
+  today: string;
+}) {
+  const [editing, setEditing] = useState<Recurring | null>(null);
+  const [deleting, setDeleting] = useState<Recurring | null>(null);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string>();
+  const lookup = buildLookup(categories);
+  const closeEdit = useCallback(() => setEditing(null), []);
+
+  const togglePause = (rule: Recurring) =>
+    start(async () => {
+      const result = await pauseRecurring(rule.id, !rule.paused);
+      setError(result.ok ? undefined : result.error);
+    });
+
+  return (
+    <>
+      <FormError message={error} />
+      <ul className="divide-y divide-line">
+        {rules.map((r) => {
+          const cat = lookup.get(r.categoryId);
+          const sub = r.subcategoryId ? lookup.get(r.subcategoryId) : null;
+          const status = r.nextDate === null
+            ? "Ended"
+            : r.paused
+              ? "Paused"
+              : `Next ${formatDate(r.nextDate, { month: "short", day: "numeric", year: r.nextDate.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric" })}`;
+          const content = (
+            <>
+              <CategoryIcon icon={cat?.icon ?? "tag"} color={cat?.color ?? "#94a3b8"} />
+              {/* The amount shares the name's line, or wraps under it, so the schedule below gets the full width on phones. */}
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="line-clamp-2 min-w-0 font-medium break-words">
+                    {cat?.name ?? "Uncategorized"}
+                    {sub && <span className="text-muted"> › {sub.name}</span>}
+                  </span>
+                  <span className={`tabular shrink-0 font-semibold ${r.type === "income" ? "text-success" : ""}`}>
+                    <span className="sr-only">{r.type === "income" ? "Income" : "Expense"} </span>
+                    {formatMoney(r.amount, currency)}
+                  </span>
+                </span>
+                {r.note && <span className="block truncate text-sm text-muted">{r.note}</span>}
+                <span className="block text-sm text-muted">
+                  {describeSchedule(r.unit, r.every, r.startDate)} ·{" "}
+                  <span className={r.paused && r.nextDate ? "font-medium text-warning" : ""}>{status}</span>
+                </span>
+              </span>
+            </>
+          );
+          return (
+            <li key={r.id} className={`flex items-center gap-1 py-1.5 ${r.paused || r.nextDate === null ? "opacity-70" : ""}`}>
+              {canEdit ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(r)}
+                    className="group -ml-2 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg py-1.5 pr-2 pl-2 text-left transition-colors duration-150 hover:bg-sunken active:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <span className="sr-only">Edit </span>
+                    {content}
+                    <Pencil className="hidden size-4 shrink-0 text-subtle transition-colors duration-150 group-hover:text-fg sm:block" aria-hidden />
+                  </button>
+                  {r.nextDate !== null && (
+                    <button
+                      type="button"
+                      className="icon-btn shrink-0"
+                      aria-label={r.paused ? "Resume" : "Pause"}
+                      disabled={pending}
+                      onClick={() => togglePause(r)}
+                    >
+                      {r.paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+                    </button>
+                  )}
+                  <button type="button" className="icon-btn -mr-2 shrink-0 hover:text-danger" aria-label="Delete recurring entry" onClick={() => setDeleting(r)}>
+                    <Trash2 className="size-4" aria-hidden />
+                  </button>
+                </>
+              ) : (
+                <div className="flex min-w-0 flex-1 items-center gap-3 py-1.5">{content}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <Modal open={editing !== null} onClose={closeEdit} title="Edit recurring entry">
+        {editing && <RecurringForm categories={categories} currency={currency} today={today} rule={editing} onDone={closeEdit} />}
+      </Modal>
+
+      <Modal open={deleting !== null} onClose={() => setDeleting(null)} title="Delete recurring entry?">
+        {deleting && <ConfirmDelete rule={deleting} currency={currency} onDone={() => setDeleting(null)} />}
+      </Modal>
+    </>
+  );
+}
+
+function RecurringForm({ categories, currency, today, rule, onDone }: {
+  categories: CategoryNode[];
+  currency: string;
+  today: string;
+  rule?: Recurring;
+  onDone: () => void;
+}) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(saveRecurring, { ok: false });
+  const [type, setType] = useState<TxType>(rule?.type ?? "expense");
+  const [every, setEvery] = useState(String(rule?.every ?? 1));
+
+  useEffect(() => {
+    if (state.ok) onDone();
+  }, [state, onDone]);
+
+  const plural = every !== "1";
+
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      {rule && <input type="hidden" name="id" value={rule.id} />}
+      <input type="hidden" name="type" value={type} />
+
+      <TypeToggle type={type} onChange={setType} />
+
+      <div>
+        <label htmlFor="rc-amount" className="label">
+          Amount ({currency})
+        </label>
+        <input
+          id="rc-amount"
+          name="amount"
+          inputMode="decimal"
+          autoComplete="off"
+          required
+          data-autofocus
+          placeholder="0.00"
+          defaultValue={rule ? centsToInput(rule.amount) : ""}
+          className="field tabular text-lg font-semibold"
+        />
+      </div>
+
+      <CategorySelect id="rc-category" categories={categories} type={type} selected={rule?.subcategoryId ?? rule?.categoryId} />
+
+      <fieldset>
+        <legend className="label">Repeats every</legend>
+        <div className="grid grid-cols-[5rem_1fr] gap-2">
+          <input
+            name="every"
+            aria-label="Interval"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={MAX_EVERY}
+            required
+            value={every}
+            onChange={(e) => setEvery(e.target.value)}
+            className="field tabular text-center"
+          />
+          <select name="unit" aria-label="Unit" defaultValue={rule?.unit ?? "month"} className="field cursor-pointer">
+            {GRANULARITIES.map((u) => (
+              <option key={u} value={u}>
+                {UNIT_LABELS[u][plural ? 1 : 0]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </fieldset>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="min-w-0">
+          <label htmlFor="rc-start" className="label">
+            {rule ? "Next on" : "Starts"}
+          </label>
+          <input
+            id="rc-start"
+            name="start"
+            type="date"
+            required
+            defaultValue={rule ? (rule.nextDate ?? today) : today}
+            aria-describedby={rule ? "rc-start-hint" : undefined}
+            className="field"
+          />
+        </div>
+        <div className="min-w-0">
+          <label htmlFor="rc-end" className="label">
+            Ends <span className="font-normal text-subtle">(optional)</span>
+          </label>
+          <input id="rc-end" name="end" type="date" defaultValue={rule?.endDate ?? ""} className="field" />
+        </div>
+      </div>
+      {rule && (
+        <p id="rc-start-hint" className="-mt-2 text-sm text-muted">
+          Changes apply from this date on. Entries already added stay as they are.
+        </p>
+      )}
+
+      <div>
+        <label htmlFor="rc-note" className="label">
+          Note <span className="font-normal text-subtle">(optional)</span>
+        </label>
+        <input id="rc-note" name="note" maxLength={200} placeholder="e.g. Netflix" defaultValue={rule?.note ?? ""} className="field" />
+      </div>
+
+      <FormError message={state.error} />
+
+      <button type="submit" disabled={pending} className="btn btn-primary w-full">
+        {pending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+        {rule ? "Save changes" : `Add recurring ${type}`}
+      </button>
+    </form>
+  );
+}
+
+function ConfirmDelete({ rule, currency, onDone }: { rule: Recurring; currency: string; onDone: () => void }) {
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string>();
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-muted">
+        This stops the recurring {rule.type} of <strong className="tabular text-fg">{formatMoney(rule.amount, currency)}</strong>.
+        Entries it already added stay in your log.
+      </p>
+      <FormError message={error} />
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" className="btn btn-ghost" onClick={onDone}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          className="btn btn-danger"
+          onClick={() =>
+            start(async () => {
+              const result = await removeRecurring(rule.id);
+              if (result.ok) onDone();
+              else setError(result.error);
+            })
+          }
+        >
+          {pending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}

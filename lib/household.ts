@@ -79,6 +79,7 @@ export type AcceptPreview = {
   transactions: number;
   categories: number;
   budgets: number;
+  recurring: number;
   currency: string;
   householdCurrency: string;
 };

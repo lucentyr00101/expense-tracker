@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, LoaderCircle, Pencil, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, LoaderCircle, Pencil, Repeat, Trash2 } from "lucide-react";
 import { removeTransaction } from "@/app/actions";
 import type { CategoryNode, Transaction } from "@/lib/data";
 import { formatDate } from "@/lib/dates";
@@ -54,6 +54,7 @@ export function TransactionList({ transactions, categories, currency, canEdit, a
                 <span className="line-clamp-2 font-medium break-words">
                   {cat?.name ?? "Uncategorized"}
                   {sub && <span className="text-muted"> › {sub.name}</span>}
+                  {t.recurringId && <Repeat className="ml-1.5 inline size-3.5 align-[-0.0625em] text-subtle" aria-label="Recurring" />}
                 </span>
                 {t.note && <span className="block truncate text-sm text-muted">{t.note}</span>}
               </span>
@@ -69,7 +70,7 @@ export function TransactionList({ transactions, categories, currency, canEdit, a
             </>
           );
           const dateHeader = showDates && t.date !== transactions[i - 1]?.date && (
-            <li className="pt-4 pb-1 first:pt-0 [&+li]:border-t-0">
+            <li className="border-b-0! pt-4 pb-1 first:pt-0">
               <Link
                 href={`/transactions?date=${t.date}`}
                 className="rounded text-sm font-semibold text-muted transition-colors duration-150 hover:text-fg focus-visible:outline-2 focus-visible:outline-ring"
