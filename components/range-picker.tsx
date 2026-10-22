@@ -79,7 +79,7 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
           <select
             value={preset}
             onChange={(e) => pickPreset(e.target.value as Preset)}
-            className="field h-10 cursor-pointer py-0 text-sm"
+            className="field h-11 cursor-pointer py-0 text-sm"
           >
             {PRESETS.map((p) => (
               <option key={p.value} value={p.value}>
@@ -110,7 +110,7 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
           <select
             value={groupParam ?? ""}
             onChange={(e) => go({ ...current, group: e.target.value || undefined })}
-            className="field h-10 cursor-pointer py-0 text-sm sm:h-9 sm:w-auto"
+            className="field h-11 cursor-pointer py-0 text-sm sm:h-9 sm:w-auto"
           >
             {GROUPS.map((g) => (
               <option key={g.value} value={g.value}>
@@ -129,7 +129,7 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
             go({ preset: "last", n, unit });
           }}
         >
-          <span className="pb-2.5 text-sm text-muted">Last</span>
+          <span className="pb-3 text-sm text-muted sm:pb-2.5">Last</span>
           <input
             aria-label="Number of periods"
             type="number"
@@ -138,13 +138,13 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
             required
             value={n}
             onChange={(e) => setN(e.target.value)}
-            className="field tabular h-9 w-20 text-sm"
+            className="field tabular h-11 w-20 text-sm sm:h-9"
           />
           <select
             aria-label="Period"
             value={unit}
             onChange={(e) => setUnit(e.target.value as Granularity)}
-            className="field h-9 w-auto cursor-pointer py-0 text-sm"
+            className="field h-11 w-auto cursor-pointer py-0 text-sm sm:h-9"
           >
             {UNITS.map((u) => (
               <option key={u.value} value={u.value}>
@@ -152,7 +152,7 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
               </option>
             ))}
           </select>
-          <button type="submit" className="btn btn-primary h-9">
+          <button type="submit" className="btn btn-primary h-11 sm:h-9">
             Apply
           </button>
         </form>
@@ -168,13 +168,13 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
         >
           <label className="min-w-0 text-xs text-muted sm:text-sm">
             From
-            <input type="date" required value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="field mt-1 h-10 px-2 text-sm sm:h-9 sm:px-3" />
+            <input type="date" required value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="field mt-1 h-11 px-2 text-sm sm:h-9 sm:px-3" />
           </label>
           <label className="min-w-0 text-xs text-muted sm:text-sm">
             To
-            <input type="date" required value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="field mt-1 h-10 px-2 text-sm sm:h-9 sm:px-3" />
+            <input type="date" required value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="field mt-1 h-11 px-2 text-sm sm:h-9 sm:px-3" />
           </label>
-          <button type="submit" className="btn btn-primary col-span-2 h-10 sm:h-9">
+          <button type="submit" className="btn btn-primary col-span-2 h-11 sm:h-9">
             Apply
           </button>
         </form>
@@ -185,7 +185,7 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
         {steppable && (
           <button
             type="button"
-            className="icon-btn size-10 shrink-0 border border-line-strong sm:size-9 sm:border-0"
+            className="icon-btn size-11 shrink-0 border border-line-strong sm:size-9 sm:border-0"
             aria-label="Previous period"
             onClick={() => go({ preset: range.preset, offset: range.offset - 1 })}
           >
@@ -206,7 +206,7 @@ export function RangePicker({ range, groupParam, today }: { range: Range; groupP
         {steppable && (
           <button
             type="button"
-            className="icon-btn size-10 shrink-0 border border-line-strong disabled:opacity-40 sm:size-9 sm:border-0"
+            className="icon-btn size-11 shrink-0 border border-line-strong disabled:opacity-40 sm:size-9 sm:border-0"
             aria-label="Next period"
             disabled={range.offset >= 0}
             onClick={() => go({ preset: range.preset, offset: range.offset + 1 || undefined })}

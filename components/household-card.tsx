@@ -127,7 +127,7 @@ function MemberRow({ member, isViewer, canManage, onDialog, onError }: {
             aria-label={`Role for ${name}`}
             value={member.role}
             disabled={pending}
-            className="field h-10 w-auto cursor-pointer"
+            className="field w-auto cursor-pointer"
             onChange={(e) =>
               start(async () => {
                 const result = await changeMemberRole(member.userId, e.target.value as InviteRole);
@@ -138,12 +138,12 @@ function MemberRow({ member, isViewer, canManage, onDialog, onError }: {
             <option value="editor">Editor</option>
             <option value="viewer">Viewer</option>
           </select>
-          <button type="button" className="btn btn-ghost h-10" onClick={() => onDialog({ kind: "transfer", member })}>
+          <button type="button" className="btn btn-ghost" onClick={() => onDialog({ kind: "transfer", member })}>
             Make owner
           </button>
           <button
             type="button"
-            className="btn btn-danger h-10"
+            className="btn btn-danger"
             aria-label={`Remove ${name}`}
             onClick={() => onDialog({ kind: "remove", member })}
           >
@@ -203,7 +203,7 @@ function PendingInvite({ invite }: { invite: OutgoingInvite }) {
         <button
           type="button"
           disabled={pending}
-          className="btn btn-ghost h-10"
+          className="btn btn-ghost"
           aria-label={`Cancel invite for ${invite.email}`}
           onClick={() =>
             start(async () => {

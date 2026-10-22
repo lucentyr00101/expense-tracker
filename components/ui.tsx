@@ -1,8 +1,13 @@
 import type { ReactNode } from "react";
 
-export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+export function PageHeader({ title, description, actions, className = "mb-6" }: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className={`flex flex-wrap items-end justify-between gap-4 ${className}`}>
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
         {description && <p className="mt-1 text-muted">{description}</p>}

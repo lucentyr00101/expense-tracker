@@ -72,7 +72,7 @@ export function TransactionList({ transactions, categories, currency, canEdit, a
                   <button
                     type="button"
                     onClick={() => setEditing(t)}
-                    className="group -ml-2 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg py-1.5 pr-2 pl-2 text-left transition-colors duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
+                    className="group -ml-2 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg py-1.5 pr-2 pl-2 text-left transition-colors duration-150 hover:bg-sunken active:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     <span className="sr-only">Edit </span>
                     {content}

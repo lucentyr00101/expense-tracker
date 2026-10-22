@@ -22,7 +22,8 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </aside>
 
-      <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between border-x-0 border-t-0 px-4 lg:hidden">
+      {/* Phones in landscape have ~390px of height, too little to pin a header above the bottom nav. */}
+      <header className="glass sticky top-0 z-30 flex h-16 [@media(max-height:500px)]:static items-center justify-between border-x-0 border-t-0 px-4 lg:hidden">
         <Logo />
         <Suspense fallback={null}>
           <ViewOnlyBadge />

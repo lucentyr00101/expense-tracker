@@ -46,7 +46,7 @@ export function SideNav() {
             href={to}
             aria-current={active ? "page" : undefined}
             className={`flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring ${
-              active ? "bg-primary/15 text-fg" : "text-muted hover:bg-sunken hover:text-fg"
+              active ? "bg-primary/15 text-fg" : "text-muted hover:bg-sunken hover:text-fg active:bg-sunken"
             }`}
           >
             <Icon className={`size-5 ${active ? "text-primary" : ""}`} aria-hidden />
@@ -73,7 +73,7 @@ export function BottomNav() {
             key={href}
             href={to}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 text-[0.6875rem] font-medium min-[360px]:text-xs focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${
+            className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 text-[0.6875rem] font-medium min-[360px]:text-xs transition-colors duration-150 active:bg-sunken focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${
               active ? "text-fg" : "text-subtle"
             }`}
           >

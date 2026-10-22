@@ -53,7 +53,7 @@ export function BudgetForm({ categoryId, name, budget, currency, canEdit }: {
               e.currentTarget.blur();
             }
           }}
-          className="field tabular h-10 w-26 pr-8 text-sm min-[360px]:w-28 sm:w-36"
+          className="field tabular w-26 pr-8 text-sm min-[360px]:w-28 sm:w-36"
         />
         <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center" role="status">
           {pending ? (

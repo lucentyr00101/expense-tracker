@@ -39,7 +39,7 @@ export function CategoryBreakdown({ expense, income, currency }: {
     <div>
       <div className="mb-3 flex items-center justify-between gap-2">
         {open ? (
-          <button type="button" className="btn btn-ghost h-9 px-3" onClick={() => setOpenId(null)}>
+          <button type="button" className="btn btn-ghost h-11 px-3 sm:h-9" onClick={() => setOpenId(null)}>
             <ChevronLeft className="size-4" aria-hidden />
             All categories
           </button>
@@ -51,7 +51,7 @@ export function CategoryBreakdown({ expense, income, currency }: {
                 type="button"
                 aria-pressed={type === t}
                 onClick={() => setType(t)}
-                className={`h-8 cursor-pointer rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring ${
+                className={`h-9 cursor-pointer rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring ${
                   type === t ? "bg-surface-strong text-fg shadow-sm" : "text-muted hover:text-fg"
                 }`}
               >
@@ -96,7 +96,7 @@ export function CategoryBreakdown({ expense, income, currency }: {
                       type="button"
                       onClick={() => setOpenId(r.key)}
                       aria-label={`${r.name}: ${formatMoney(r.amount, currency)}, ${pct}%. Show subcategories`}
-                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 text-left min-[360px]:gap-3 transition-colors duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
+                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 text-left min-[360px]:gap-3 transition-colors duration-150 hover:bg-sunken active:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
                     >
                       {content}
                       <ChevronRight className="size-4 shrink-0 text-subtle max-[359px]:hidden" aria-hidden />
@@ -113,7 +113,7 @@ export function CategoryBreakdown({ expense, income, currency }: {
               type="button"
               aria-expanded={showAll}
               onClick={() => setShowAll(!showAll)}
-              className="mt-2 flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-muted transition-colors duration-150 hover:bg-sunken hover:text-fg focus-visible:outline-2 focus-visible:outline-ring"
+              className="mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-muted transition-colors duration-150 hover:bg-sunken hover:text-fg active:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
             >
               {showAll ? `Show top ${TOP}` : `Show all ${rows.length}`}
               <ChevronDown className={`size-4 transition-transform duration-200 ${showAll ? "rotate-180" : ""}`} aria-hidden />

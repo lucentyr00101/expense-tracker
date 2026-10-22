@@ -11,9 +11,11 @@
   --surface-sunken: rgba(87, 52, 20, 0.05);
   --border: rgba(87, 52, 20, 0.1);
   --border-strong: rgba(87, 52, 20, 0.18);
+  /* Input outlines need 3:1 against cards and the page (WCAG 1.4.11); --border-strong is decorative. */
+  --border-field: #948676;
   --fg: #292524;
   --fg-muted: #57534e;
-  --fg-subtle: #78716c;
+  --fg-subtle: #6f6862; /* 4.7:1 on page, cards and field fills */
   --primary: #b45309;
   --primary-hover: #92400e;
   --on-primary: #ffffff;
@@ -41,6 +43,7 @@
   --color-sunken: var(--surface-sunken);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
+  --color-line-field: var(--border-field);
   --color-fg: var(--fg);
   --color-muted: var(--fg-muted);
   --color-subtle: var(--fg-subtle);
@@ -58,6 +61,11 @@
   --color-expense: var(--series-expense);
   --color-income: var(--series-income);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Touch screens get no hover, so controls show their own :active state instead of iOS's grey flash. */
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -81,7 +89,7 @@ body {
   }
 
   .field {
-    @apply h-11 w-full rounded-lg border border-line-strong bg-sunken px-3 text-base text-fg placeholder:text-subtle;
+    @apply h-11 w-full rounded-lg border border-line-field bg-sunken px-3 text-base text-fg placeholder:text-subtle;
     @apply transition-colors duration-150 focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40;
   }
 
@@ -108,17 +116,17 @@ body {
     @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
   }
   .btn-primary {
-    @apply bg-primary text-on-primary hover:bg-primary-hover;
+    @apply bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-hover;
   }
   .btn-ghost {
-    @apply border border-line-strong text-fg hover:bg-sunken;
+    @apply border border-line-strong text-fg hover:bg-sunken active:bg-sunken;
   }
   .btn-danger {
-    @apply bg-danger-soft text-danger hover:bg-danger/20;
+    @apply bg-danger-soft text-danger hover:bg-danger/20 active:bg-danger/20;
   }
   .icon-btn {
     @apply inline-flex size-11 cursor-pointer items-center justify-center rounded-lg text-muted;
-    @apply transition-colors duration-150 hover:bg-sunken hover:text-fg;
+    @apply transition-colors duration-150 hover:bg-sunken hover:text-fg active:bg-sunken active:text-fg;
     @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
   }
 }

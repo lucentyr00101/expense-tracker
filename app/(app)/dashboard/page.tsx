@@ -48,7 +48,9 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
 
   return (
     <div className="flex flex-col gap-6">
+      {/* The column's gap already spaces the header, so it drops its own bottom margin. */}
       <PageHeader
+        className=""
         title={`Hi, ${ledger.user.name.split(" ")[0]}`}
         description="Here's how your money moved."
         actions={<AddTransactionButton categories={categories} currency={currency} date={today} canEdit={ledger.role !== "viewer"} />}
@@ -91,7 +93,7 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
       <Card
         title="Budgets this month"
         actions={
-          <Link href="/budgets" className="btn btn-ghost h-9 px-3">
+          <Link href="/budgets" className="btn btn-ghost h-11 px-3 sm:h-9">
             Manage <ArrowRight className="size-4" aria-hidden />
           </Link>
         }

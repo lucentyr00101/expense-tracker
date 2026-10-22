@@ -60,7 +60,7 @@ export function CashFlowChart({ data, expense, income, group, currency }: {
         </div>
         <button
           type="button"
-          className="btn btn-ghost h-9 shrink-0 px-3"
+          className="btn btn-ghost h-11 shrink-0 px-3 sm:h-9"
           onClick={() => setView(view === "chart" ? "table" : "chart")}
         >
           {view === "chart" ? <Table2 className="size-4" aria-hidden /> : <ChartColumn className="size-4" aria-hidden />}
