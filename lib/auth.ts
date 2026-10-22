@@ -25,6 +25,8 @@ export const auth = betterAuth({
     },
   },
   session: {
+    // Long-lived so the installed PWA rarely asks users to sign in again; still refreshed daily while active.
+    expiresIn: 60 * 60 * 24 * 60,
     // Avoid a DB round trip on every request; the session is re-validated every 5 minutes.
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
