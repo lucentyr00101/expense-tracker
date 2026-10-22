@@ -14,7 +14,8 @@ export const metadata: Metadata = {
   verification: { google: "HpEYBuoAYjQIzebFQ0ncemNegruVD64vubsV0vuMCVM" },
 };
 
-export const viewport: Viewport = { themeColor: "#fbf7f0" };
+// viewportFit "cover" makes env(safe-area-inset-*) report the iPhone's rounded corners and home indicator.
+export const viewport: Viewport = { themeColor: "#fbf7f0", viewportFit: "cover" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

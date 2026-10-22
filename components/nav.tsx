@@ -64,7 +64,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Main"
-      className="glass fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="glass fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-x-0 border-b-0 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] lg:hidden"
     >
       {links.map(({ href, to, label, icon: Icon }) => {
         const active = isActive(href);

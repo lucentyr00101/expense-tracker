@@ -67,6 +67,9 @@ body {
     radial-gradient(50rem 35rem at 110% 10%, var(--bg-glow-2), transparent 60%);
   background-attachment: fixed;
   color: var(--fg);
+  /* Keeps content clear of the notch in landscape. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @layer components {
