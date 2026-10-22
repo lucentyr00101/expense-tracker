@@ -86,12 +86,16 @@ body {
   }
 
   /* iOS Safari sizes native date inputs to their content and ignores width, overflowing flex rows. */
+  /* appearance: none also drops iOS's vertical centering, so flex restores it (justify-* sets the horizontal side). */
   input.field[type="date"] {
     appearance: none;
     min-width: 0;
+    display: flex;
+    align-items: center;
   }
   input.field[type="date"]::-webkit-date-and-time-value {
-    text-align: left;
+    min-height: 1.5em;
+    text-align: inherit;
   }
 
   .label {

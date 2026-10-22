@@ -13,7 +13,7 @@ export function DateJump({ value, max }: { value: string; max: string }) {
         value={value}
         max={max}
         onChange={(e) => isIsoDate(e.target.value) && router.push(`/transactions?date=${e.target.value}`)}
-        className="field block cursor-pointer sm:w-auto"
+        className="field cursor-pointer justify-center text-center sm:w-auto"
       />
     </label>
   );
