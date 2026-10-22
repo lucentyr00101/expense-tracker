@@ -2,7 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Read `AGENTS.md` first: this is Next.js 16.4 with breaking changes from older versions. Check `node_modules/next/dist/docs/` before using a Next.js API.
+The app is **Pursely** (package `pursely`; formerly Ledgerly / expense-tracker), a personal and household expense tracker deployed on Vercel.
+
+Read `AGENTS.md` first: this is Next.js 16.4 with breaking changes from older versions. Check `node_modules/next/dist/docs/` before using a Next.js API. `next dev` rewrites the marked blocks in `AGENTS.md` (`experimental.agentFeedback` is on in `next.config.ts`), so commit those changes rather than reverting them.
 
 ## Commands
 
@@ -27,9 +29,13 @@ If the dev server keeps serving old CSS after `app/globals.css` changes, the Tur
 
 `BETTER_AUTH_URL` must be the deployment's own origin. It sets the Google OAuth `redirect_uri`, so leaving it as `http://localhost:3000` on Vercel sends users back to localhost after Google sign-in. If it is unset, `lib/auth.ts` falls back to `VERCEL_PROJECT_PRODUCTION_URL` and trusts the Vercel deployment URLs. Google's console needs `<origin>/api/auth/callback/google` as an authorized redirect URI.
 
+Functions run in Vercel region `hkg1` (`vercel.json`), close to the database. Cold starts matter: `ensureSetup()` runs on each one, so keep its database round trips batched.
+
 ## Architecture
 
-**Stack:** Next.js App Router with `cacheComponents: true`, React 19, Tailwind v4, Better Auth (Google only) on the native `mongodb` driver (no Mongoose), Recharts, zod, lucide-react.
+**Stack:** Next.js App Router with `cacheComponents: true`, React 19, Tailwind v4, Better Auth (Google only) on the native `mongodb` driver (no Mongoose), Recharts, zod, lucide-react. Installable as a PWA (`app/manifest.ts`, start URL `/dashboard`).
+
+**Routes:** `app/page.tsx` is the public sign-in landing. `app/(app)/` holds the signed-in pages (dashboard, transactions, categories, budgets, settings) under a layout with side nav (lg+), bottom nav and header (below lg), and pull-to-refresh. `app/(legal)/` holds the public `/privacy` and `/terms` pages, which Google's OAuth consent screen links to; keep them out of the `proxy.ts` matcher.
 
 **Cache Components rules (most common build failure):**
 - Any read of `cookies()`, `headers()` or `searchParams`, including `getUser()`, must sit inside a `<Suspense>` boundary. Pages follow one pattern: a sync `default export` renders a header plus `<Suspense fallback={<Skeleton/>}>`, and an inner async component awaits the data. The `searchParams` promise is passed down unawaited.
@@ -37,9 +43,10 @@ If the dev server keeps serving old CSS after `app/globals.css` changes, the Tur
 - Data is not cached (`use cache` isn't used). Server Actions call `refresh()` from `next/cache` after a mutation.
 
 **Layers:**
-- `lib/db.ts`: MongoClient singleton (kept on `globalThis` in dev). `lib/auth.ts` holds the Better Auth server config, `lib/auth-client.ts` the client one, and `app/api/auth/[...all]/route.ts` the auth handler.
+- `lib/db.ts`: MongoClient singleton on `globalThis` (in production too, so page and route bundles share one pool). `maxIdleTimeMS: 5000` plus `attachDatabasePool` from `@vercel/functions` let Vercel suspend instances without stale connections. `connectDb()` must run before database work: if the first lazy connect fails, the driver otherwise throws "Topology is closed" until a redeploy. `getSession()` and the auth route call it.
+- `lib/auth.ts` holds the Better Auth server config (60-day sessions so the installed app rarely signs out, 5-minute cookie cache), `lib/auth-client.ts` the client one, and `app/api/auth/[...all]/route.ts` the auth handler, which wraps `GET`/`POST` with `connectDb()`.
 - `proxy.ts` (Next 16's renamed middleware) only does optimistic cookie-presence redirects between `/` and the app routes. Add new protected routes to its `matcher`. Real authorization happens in the data layer.
-- `lib/session.ts`: `getUser()` (React `cache`, redirects to `/`), `getLedger()` (user plus `{ ledgerId, role, householdId }`, redirects), `getLedgerContext()` (returns null; for actions and route handlers; replaces the removed `getUserId()`), `getToday()` (uses the viewer's timezone from the `tz` cookie, which `components/timezone-cookie.tsx` sets).
+- `lib/session.ts`: `getSession()` (connects the database, then reads Better Auth's session; use it instead of calling `auth.api.getSession` directly), `getUser()` (React `cache`, redirects to `/`), `getLedger()` (user plus `{ ledgerId, role, householdId }`, redirects), `getLedgerContext()` (returns null; for actions and route handlers; replaces the removed `getUserId()`), `getToday()` (uses the viewer's timezone from the `tz` cookie, which `components/timezone-cookie.tsx` sets).
 - `lib/data.ts`: the server-only data access layer and the only place that touches collections. Every query is scoped by `ledgerId` (the household's ledger, or the user's own id when solo), and writes record the `createdBy` user. Returns plain serializable objects (ids as hex strings).
 - `lib/household.ts`: households, invites and membership. `resolveLedger(userId)` maps a user to their ledger and role (owner, editor, viewer) on every request, so removals and role changes apply immediately, even to stale pages. Pages take a `canEdit` prop and hide add/edit controls for viewers; the server check is what counts.
 - `app/actions.ts`: Server Actions. They re-authenticate with `getLedgerContext()`, refuse viewers ("You have view-only access to this household."), validate with zod, call `lib/data.ts`, and return `ActionState` `{ ok, error? }` for `useActionState`. `app/api/export/route.ts` produces the CSV export.
@@ -61,12 +68,15 @@ If the dev server keeps serving old CSS after `app/globals.css` changes, the Tur
 **UI:**
 - Design tokens are CSS variables in `app/globals.css`, mapped to Tailwind colors in `@theme inline` (`bg-surface`, `text-muted`, `bg-primary`, `text-expense`…). The theme is light only (warm gold & plum). Reusable classes `.glass`, `.field`, `.label`, `.btn`, `.btn-primary`, `.btn-ghost`, `.btn-danger` and `.icon-btn` are defined there. Use tokens, not raw hex.
 - `design-system/pursely/MASTER.md` records the palette and the reasons behind it. Chart series colors (`--series-expense`, `--series-income`) were checked for colorblind separation, so re-validate before changing them.
+- Contrast and touch minimums: text meets 4.5:1 (`text-subtle` is the lightest allowed), input outlines use `border-line-field` for 3:1 (`--border-strong` is decorative only), and tap targets are at least 44px (`h-11`, `size-11`, `min-h-11`). Pair every `hover:` style with the same `active:` style, since touch screens never hover and the iOS tap highlight is turned off.
+- Phone and PWA layout: `viewportFit: "cover"` is set, so fixed or edge-hugging UI must pad with `env(safe-area-inset-*)`. Below lg the add-transaction button floats above the bottom nav, and `<main>` has `pb-40` to clear both. The header stops being sticky at `max-height: 500px` (landscape phones). `components/pull-to-refresh.tsx` only runs in standalone display mode, where `overscroll-behavior-y: none` disables native bounce.
+- `.field` already fixes iOS Safari date inputs (overflow and vertical centering); don't restyle `input[type="date"]` per page.
 - Dialogs use `components/modal.tsx` (native `<dialog>`). Put `data-autofocus` on the field that should get focus. React's `autoFocus` doesn't work because it runs before `showModal()`.
 - Give `<select>` and other form controls an explicit `aria-label` or `htmlFor` label. A wrapping `<label>` pulls the selected option's text into the accessible name.
 
 ## Testing signed-in pages
 
-Google sign-in can't be automated. Point `MONGODB_DB` at a non-production database (e.g. `expense-tracker-dev`) and check it first. To render authenticated pages locally, create a test session through Better Auth's internal adapter in a script run with `bun --conditions=react-server --env-file=.env.local` (`server-only` throws without that condition):
+Google sign-in can't be automated. Point `MONGODB_DB` at a non-production database (e.g. `expense-tracker-dev`) and check it first. To render authenticated pages locally, create a test session through Better Auth's internal adapter in a `.mts` script run on Node with `bunx tsx --conditions=react-server --env-file=<env file>` (`server-only` throws without that condition). Don't run it with `bun`: the `bson` package throws `NotImplementedError: node:v8 isBuildingSnapshot` under Bun 1.3. To use the dev database, copy `.env.local` with `MONGODB_DB` changed, and start the dev server with `MONGODB_DB=expense-tracker-dev bun run dev`; variables already set in the shell win over `.env.local`. A script outside the project must import packages such as `mongodb` by their absolute `node_modules` path.
 
 1. Get `(await auth.$context).internalAdapter`.
 2. Call `createUser` and `createSession`.
