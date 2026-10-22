@@ -85,6 +85,15 @@ body {
     @apply transition-colors duration-150 focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40;
   }
 
+  /* iOS Safari sizes native date inputs to their content and ignores width, overflowing flex rows. */
+  input.field[type="date"] {
+    appearance: none;
+    min-width: 0;
+  }
+  input.field[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+
   .label {
     @apply mb-1.5 block text-sm font-medium text-muted;
   }
