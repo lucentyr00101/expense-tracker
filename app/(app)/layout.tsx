@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { InviteBanner } from "@/components/invite-banner";
 import { Logo } from "@/components/logo";
 import { BottomNav, LogoLink, SideNav } from "@/components/nav";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { ViewOnlyBadge } from "@/components/view-only-badge";
 import { UserMenu, UserMenuSkeleton } from "@/components/user-menu";
 
@@ -35,6 +36,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         {children}
       </main>
       <BottomNav />
+      <PullToRefresh />
     </div>
   );
 }

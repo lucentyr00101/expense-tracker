@@ -114,6 +114,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* The installed app has its own pull-to-refresh (components/pull-to-refresh.tsx). */
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior-y: none;
+  }
+}
+
 dialog::backdrop {
   background: rgba(41, 26, 12, 0.4);
   backdrop-filter: blur(4px);
