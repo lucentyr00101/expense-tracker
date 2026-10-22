@@ -393,9 +393,8 @@ const inRange = (ledgerId: string, from: string, to: string): Filter<Transaction
   date: { $gte: toUtc(from), $lte: toUtc(to) },
 });
 
-export async function listTransactions(ledgerId: string, from: string, to: string): Promise<Transaction[]> {
-  const docs = await transactions.find(inRange(ledgerId, from, to)).sort({ date: -1, createdAt: -1 }).toArray();
-  return docs.map((d) => ({
+function toTransaction(d: TransactionDoc): Transaction {
+  return {
     id: d._id.toHexString(),
     type: d.type,
     amount: d.amount,
@@ -404,7 +403,76 @@ export async function listTransactions(ledgerId: string, from: string, to: strin
     categoryId: d.categoryId.toHexString(),
     subcategoryId: d.subcategoryId?.toHexString() ?? null,
     createdBy: d.createdBy,
-  }));
+  };
+}
+
+export async function listTransactions(ledgerId: string, from: string, to: string): Promise<Transaction[]> {
+  const docs = await transactions.find(inRange(ledgerId, from, to)).sort({ date: -1, createdAt: -1 }).toArray();
+  return docs.map(toTransaction);
+}
+
+/** Every field is optional; callers validate them, and ids that aren't ObjectIds are ignored here too. */
+export type TransactionSearch = {
+  q?: string;
+  type?: TxType;
+  categoryId?: string; // top-level or subcategory
+  createdBy?: string;
+  min?: number; // cents
+  max?: number;
+  from?: string;
+  to?: string;
+};
+
+export type SearchResult = {
+  transactions: Transaction[];
+  count: number;
+  expense: number;
+  income: number;
+};
+
+/** Matching transactions, newest first and capped at `limit`, plus totals over every match. */
+export async function searchTransactions(ledgerId: string, search: TransactionSearch, limit: number): Promise<SearchResult> {
+  const and: Filter<TransactionDoc>[] = [];
+  if (search.type) and.push({ type: search.type });
+  if (typeof search.createdBy === "string") and.push({ createdBy: search.createdBy });
+  if (typeof search.categoryId === "string" && ObjectId.isValid(search.categoryId)) {
+    const id = new ObjectId(search.categoryId);
+    and.push({ $or: [{ categoryId: id }, { subcategoryId: id }] });
+  }
+  if (search.min !== undefined || search.max !== undefined) {
+    and.push({ amount: { ...(search.min !== undefined && { $gte: search.min }), ...(search.max !== undefined && { $lte: search.max }) } });
+  }
+  if (search.from || search.to) {
+    and.push({ date: { ...(search.from && { $gte: toUtc(search.from) }), ...(search.to && { $lte: toUtc(search.to) }) } });
+  }
+  const q = search.q?.trim();
+  if (q) {
+    // A word matches the note or the name of a category, archived ones included so old entries turn up.
+    const regex = { $regex: escapeRegex(q), $options: "i" };
+    const named = await categories
+      .find({ ...visibleTo(ledgerId), name: regex }, { projection: { _id: 1 } })
+      .toArray();
+    const ids = named.map((c) => c._id);
+    and.push({ $or: [{ note: regex }, { categoryId: { $in: ids } }, { subcategoryId: { $in: ids } }] });
+  }
+
+  const filter: Filter<TransactionDoc> = { ledgerId, ...(and.length && { $and: and }) };
+  const [docs, totals] = await Promise.all([
+    transactions.find(filter).sort({ date: -1, createdAt: -1 }).limit(limit).toArray(),
+    transactions
+      .aggregate<{ _id: TxType; total: number; count: number }>([
+        { $match: filter },
+        { $group: { _id: "$type", total: { $sum: "$amount" }, count: { $sum: 1 } } },
+      ])
+      .toArray(),
+  ]);
+  const byType = new Map(totals.map((t) => [t._id, t]));
+  return {
+    transactions: docs.map(toTransaction),
+    count: totals.reduce((n, t) => n + t.count, 0),
+    expense: byType.get("expense")?.total ?? 0,
+    income: byType.get("income")?.total ?? 0,
+  };
 }
 
 export type DayTotal = { date: string; expense: number; income: number };

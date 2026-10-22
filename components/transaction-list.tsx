@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { Fragment, useCallback, useState, useTransition } from "react";
+import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, LoaderCircle, Pencil, Trash2 } from "lucide-react";
 import { removeTransaction } from "@/app/actions";
 import type { CategoryNode, Transaction } from "@/lib/data";
+import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { CategoryIcon } from "./category-icon";
 import { Modal } from "./modal";
@@ -23,12 +25,14 @@ export function buildLookup(categories: CategoryNode[]): Lookup {
 
 type Authors = Record<string, { name: string; image: string | null }>;
 
-export function TransactionList({ transactions, categories, currency, canEdit, authors }: {
+export function TransactionList({ transactions, categories, currency, canEdit, authors, showDates = false }: {
   transactions: Transaction[];
   categories: CategoryNode[];
   currency: string;
   canEdit: boolean;
   authors?: Authors;
+  /** Head each run of same-day rows with its date, for lists that span several days. */
+  showDates?: boolean;
 }) {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
@@ -38,7 +42,7 @@ export function TransactionList({ transactions, categories, currency, canEdit, a
   return (
     <>
       <ul className="divide-y divide-line">
-        {transactions.map((t) => {
+        {transactions.map((t, i) => {
           const cat = lookup.get(t.categoryId);
           const sub = t.subcategoryId ? lookup.get(t.subcategoryId) : null;
           const isIncome = t.type === "income";
@@ -64,28 +68,41 @@ export function TransactionList({ transactions, categories, currency, canEdit, a
               {author && <AuthorAvatar name={author.name} image={author.image} />}
             </>
           );
-          return (
-            // The whole row opens the editor, a bigger target than an icon and one less control per row on phones.
-            <li key={t.id} className="flex items-center gap-1 py-1.5">
-              {canEdit ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(t)}
-                    className="group -ml-2 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg py-1.5 pr-2 pl-2 text-left transition-colors duration-150 hover:bg-sunken active:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    <span className="sr-only">Edit </span>
-                    {content}
-                    <Pencil className="hidden size-4 shrink-0 text-subtle transition-colors duration-150 group-hover:text-fg sm:block" aria-hidden />
-                  </button>
-                  <button type="button" className="icon-btn -mr-2 shrink-0 hover:text-danger" aria-label="Delete transaction" onClick={() => setDeleting(t)}>
-                    <Trash2 className="size-4" aria-hidden />
-                  </button>
-                </>
-              ) : (
-                <div className="flex min-w-0 flex-1 items-center gap-3 py-1.5">{content}</div>
-              )}
+          const dateHeader = showDates && t.date !== transactions[i - 1]?.date && (
+            <li className="pt-4 pb-1 first:pt-0 [&+li]:border-t-0">
+              <Link
+                href={`/transactions?date=${t.date}`}
+                className="rounded text-sm font-semibold text-muted transition-colors duration-150 hover:text-fg focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <time dateTime={t.date}>{formatDate(t.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</time>
+              </Link>
             </li>
+          );
+          return (
+            <Fragment key={t.id}>
+              {dateHeader}
+              {/* The whole row opens the editor, a bigger target than an icon and one less control per row on phones. */}
+              <li className="flex items-center gap-1 py-1.5">
+                {canEdit ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(t)}
+                      className="group -ml-2 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg py-1.5 pr-2 pl-2 text-left transition-colors duration-150 hover:bg-sunken active:bg-sunken focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <span className="sr-only">Edit </span>
+                      {content}
+                      <Pencil className="hidden size-4 shrink-0 text-subtle transition-colors duration-150 group-hover:text-fg sm:block" aria-hidden />
+                    </button>
+                    <button type="button" className="icon-btn -mr-2 shrink-0 hover:text-danger" aria-label="Delete transaction" onClick={() => setDeleting(t)}>
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center gap-3 py-1.5">{content}</div>
+                )}
+              </li>
+            </Fragment>
           );
         })}
       </ul>

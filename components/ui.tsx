@@ -62,3 +62,15 @@ export function FormError({ message }: { message?: string }) {
     </p>
   );
 }
+
+export function Stat({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
+  return (
+    // A row of label and value on phones, where three columns leave no room for the amount.
+    <div className="glass flex min-w-0 items-baseline justify-between gap-3 rounded-xl px-4 py-2.5 sm:block sm:p-4">
+      <p className="text-sm font-medium text-muted">{label}</p>
+      <p className={`tabular truncate font-semibold sm:mt-1 sm:text-xl ${tone === "danger" ? "text-danger" : tone === "success" ? "text-success" : ""}`}>
+        {value}
+      </p>
+    </div>
+  );
+}

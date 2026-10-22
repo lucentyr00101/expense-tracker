@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ChevronLeft, ChevronRight, Plus, Receipt } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Receipt, Search } from "lucide-react";
 import { getToday, getLedger } from "@/lib/session";
 import { dailyTotals, getSettings, listCategories, listTransactions } from "@/lib/data";
 import { getHousehold, listUsers } from "@/lib/household";
@@ -10,7 +10,7 @@ import { formatMoney } from "@/lib/money";
 import { AddTransactionButton } from "@/components/add-transaction-button";
 import { DateJump } from "@/components/date-jump";
 import { TransactionList } from "@/components/transaction-list";
-import { Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
+import { Card, EmptyState, PageHeader, Skeleton, Stat } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Daily log" };
 
@@ -54,6 +54,10 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
         actions={
           // Today sits here rather than in the date row, where it would squeeze the date input on phones.
           <div className="flex flex-wrap gap-2">
+            <Link href="/transactions/search" className="btn btn-ghost">
+              <Search className="size-4" aria-hidden />
+              Search
+            </Link>
             {date !== today && (
               <Link href="/transactions" className="btn btn-ghost">
                 Today
@@ -129,18 +133,6 @@ async function Daily({ searchParams }: { searchParams: PageProps<"/transactions"
         )}
       </Card>
     </>
-  );
-}
-
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
-  return (
-    // A row of label and value on phones, where three columns leave no room for the amount.
-    <div className="glass flex min-w-0 items-baseline justify-between gap-3 rounded-xl px-4 py-2.5 sm:block sm:p-4">
-      <p className="text-sm font-medium text-muted">{label}</p>
-      <p className={`tabular truncate font-semibold sm:mt-1 sm:text-xl ${tone === "danger" ? "text-danger" : tone === "success" ? "text-success" : ""}`}>
-        {value}
-      </p>
-    </div>
   );
 }
 
